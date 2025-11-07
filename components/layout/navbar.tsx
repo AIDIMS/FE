@@ -27,6 +27,11 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 		const segments = pathname.split("/").filter(Boolean)
 		const breadcrumbs: Array<{ label: string; href: string }> = []
 		
+		// If at dashboard, only show DicomPro
+		if (pathname === "/dashboard" || pathname === "/") {
+			return [{ label: "DicomPro", href: "/dashboard" }]
+		}
+		
 		// Always start with dashboard
 		breadcrumbs.push({ label: "DicomPro", href: "/dashboard" })
 		
@@ -36,6 +41,9 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 		let currentPath = ""
 		segments.forEach((segment, index) => {
 			currentPath += `/${segment}`
+			
+			// Skip if it's the same as dashboard (already added)
+			if (currentPath === "/dashboard") return
 			
 			// Check if it's a known route
 			if (breadcrumbMap[currentPath]) {
@@ -69,7 +77,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 			{/* Breadcrumbs */}
 			<div className="hidden md:flex items-center gap-2 text-sm text-gray-500">
 				{breadcrumbs.map((crumb, index) => (
-					<React.Fragment key={crumb.href}>
+					<React.Fragment key={`${crumb.href}-${index}`}>
 						{index > 0 && <ChevronRight className="h-4 w-4 text-gray-400" />}
 						{index === breadcrumbs.length - 1 ? (
 							<span className="text-gray-900 font-medium">{crumb.label}</span>
