@@ -59,7 +59,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       {/* Email */}
       <div className="space-y-2">
-        <Label htmlFor={emailId} className="text-medical-dark font-medium">
+        <Label htmlFor={emailId} className="text-gray-900 font-medium">
           Địa chỉ email
         </Label>
         <Input
@@ -77,7 +77,7 @@ export function LoginForm() {
           aria-invalid={!!emailError}
           aria-describedby={emailError ? `${emailId}-error` : undefined}
           required
-          className="bg-white/80 border-medical-border text-medical-dark placeholder:text-medical-muted focus:ring-2 focus:ring-medical-primary/20 focus:border-medical-primary"
+          className="bg-white/80 border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
         />
         {emailError && (
           <div id={`${emailId}-error`} className="text-sm text-red-700 mt-1" role="alert">
@@ -89,10 +89,10 @@ export function LoginForm() {
       {/* Password */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor={passwordId} className="text-medical-dark font-medium">
+          <Label htmlFor={passwordId} className="text-gray-900 font-medium">
             Mật khẩu
           </Label>
-          <a href="/forgot-password" className="text-sm text-medical-primary hover:text-medical-accent transition-colors">
+          <a href="/forgot-password" className="text-sm text-black hover:text-blue-700 transition-colors">
             Quên mật khẩu?
           </a>
         </div>
@@ -112,13 +112,13 @@ export function LoginForm() {
             aria-invalid={!!passwordError}
             aria-describedby={passwordError ? `${passwordId}-error` : undefined}
             required
-            className="bg-white/80 border-medical-border text-medical-dark placeholder:text-medical-muted focus:ring-2 focus:ring-medical-primary/20 focus:border-medical-primary pr-12"
+            className="bg-white/80 border-gray-300 text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pr-12"
           />
 
           <button
             type="button"
             onClick={() => setShowPassword((s) => !s)}
-            className="absolute inset-y-0 right-2 p-2 rounded-md text-medical-muted hover:text-medical-dark flex items-center justify-center"
+            className="absolute inset-y-0 right-2 p-2 rounded-md text-gray-400 hover:text-gray-600 flex items-center justify-center"
             aria-pressed={showPassword}
             aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
@@ -140,9 +140,9 @@ export function LoginForm() {
           type="checkbox"
           checked={remember}
           onChange={(e) => setRemember(e.target.checked)}
-          className="w-4 h-4 text-medical-primary bg-white border-medical-border rounded"
+          className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
         />
-        <Label htmlFor={`${id}-remember`} className="text-sm text-medical-dark">
+        <Label htmlFor={`${id}-remember`} className="text-sm text-gray-900">
           Ghi nhớ đăng nhập
         </Label>
       </div>
@@ -158,7 +158,7 @@ export function LoginForm() {
         type="submit"
         disabled={isLoading}
         aria-busy={isLoading}
-        className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-2 h-auto rounded-full transition-colors duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-black hover:bg-blue-900 text-white font-semibold py-2 h-auto rounded-full transition-colors duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
           <span className="flex items-center gap-2" role="status" aria-live="polite">
@@ -190,13 +190,13 @@ export function LoginForm() {
       </Button>
 
       <div className="pt-4">
-        <p className="text-xs text-medical-muted text-center">
+        <p className="text-xs text-gray-500 text-center">
           Khi đăng nhập, bạn đồng ý với {" "}
-          <a href="/terms" className="text-medical-primary hover:underline font-bold">
+          <a href="/terms" className="text-black hover:text-blue-700 hover:underline font-semibold">
             Điều khoản dịch vụ
           </a>{" "}
           và {" "}
-          <a href="/privacy" className="text-medical-primary hover:underline font-bold">
+          <a href="/privacy" className="text-black hover:text-blue-700 hover:underline font-semibold">
             Chính sách bảo mật
           </a>{" "}
           của chúng tôi.
