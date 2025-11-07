@@ -88,130 +88,132 @@ export function PatientForm({
 	}
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-5" noValidate>
-			{/* Mã bệnh nhân */}
-			<div className="space-y-2">
-				<Label htmlFor={`${id}-patient_code`} className="text-sm font-medium">
-					Mã bệnh nhân <span className="text-red-500">*</span>
-				</Label>
-				<Input
-					id={`${id}-patient_code`}
-					type="text"
-					placeholder="VD: BN001"
-					value={formData.patient_code}
-					onChange={(e) => handleChange("patient_code", e.target.value)}
-					onBlur={() => validate()}
-					aria-invalid={!!errors.patient_code}
-					required
-					disabled={!!patient} // Không cho sửa mã bệnh nhân khi edit
-					className={
-						errors.patient_code
-							? "border-red-500 focus:ring-red-500"
-							: ""
-					}
-				/>
-				{errors.patient_code && (
-					<p className="text-sm text-red-600" role="alert">
-						{errors.patient_code}
-					</p>
-				)}
+		<form onSubmit={handleSubmit} className="space-y-6" noValidate>
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+				{/* Mã bệnh nhân */}
+				<div className="space-y-2">
+					<Label htmlFor={`${id}-patient_code`} className="text-sm font-medium text-gray-700">
+						Mã bệnh nhân <span className="text-red-500">*</span>
+					</Label>
+					<Input
+						id={`${id}-patient_code`}
+						type="text"
+						placeholder="VD: BN001"
+						value={formData.patient_code}
+						onChange={(e) => handleChange("patient_code", e.target.value)}
+						onBlur={() => validate()}
+						aria-invalid={!!errors.patient_code}
+						required
+						disabled={!!patient} // Không cho sửa mã bệnh nhân khi edit
+						className={
+							errors.patient_code
+								? "border-red-500 focus:ring-red-500"
+								: ""
+						}
+					/>
+					{errors.patient_code && (
+						<p className="text-sm text-red-600" role="alert">
+							{errors.patient_code}
+						</p>
+					)}
+				</div>
+
+				{/* Họ và tên */}
+				<div className="space-y-2">
+					<Label htmlFor={`${id}-full_name`} className="text-sm font-medium text-gray-700">
+						Họ và tên <span className="text-red-500">*</span>
+					</Label>
+					<Input
+						id={`${id}-full_name`}
+						type="text"
+						placeholder="Nhập họ và tên"
+						value={formData.full_name}
+						onChange={(e) => handleChange("full_name", e.target.value)}
+						onBlur={() => validate()}
+						aria-invalid={!!errors.full_name}
+						required
+						className={
+							errors.full_name ? "border-red-500 focus:ring-red-500" : ""
+						}
+					/>
+					{errors.full_name && (
+						<p className="text-sm text-red-600" role="alert">
+							{errors.full_name}
+						</p>
+					)}
+				</div>
+
+				{/* Ngày sinh */}
+				<div className="space-y-2">
+					<Label htmlFor={`${id}-date_of_birth`} className="text-sm font-medium text-gray-700">
+						Ngày sinh
+					</Label>
+					<Input
+						id={`${id}-date_of_birth`}
+						type="date"
+						value={formData.date_of_birth}
+						onChange={(e) => handleChange("date_of_birth", e.target.value)}
+						onBlur={() => validate()}
+						aria-invalid={!!errors.date_of_birth}
+						className={
+							errors.date_of_birth
+								? "border-red-500 focus:ring-red-500"
+								: ""
+						}
+					/>
+					{errors.date_of_birth && (
+						<p className="text-sm text-red-600" role="alert">
+							{errors.date_of_birth}
+						</p>
+					)}
+				</div>
+
+				{/* Giới tính */}
+				<div className="space-y-2">
+					<Label htmlFor={`${id}-gender`} className="text-sm font-medium text-gray-700">
+						Giới tính
+					</Label>
+					<Select
+						value={formData.gender}
+						onValueChange={(value: string) => handleChange("gender", value)}
+					>
+						<SelectTrigger id={`${id}-gender`}>
+							<SelectValue placeholder="Chọn giới tính" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="male">Nam</SelectItem>
+							<SelectItem value="female">Nữ</SelectItem>
+							<SelectItem value="other">Khác</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+
+				{/* Số điện thoại */}
+				<div className="space-y-2">
+					<Label htmlFor={`${id}-phone`} className="text-sm font-medium text-gray-700">
+						Số điện thoại
+					</Label>
+					<Input
+						id={`${id}-phone`}
+						type="tel"
+						placeholder="VD: 0901234567"
+						value={formData.phone}
+						onChange={(e) => handleChange("phone", e.target.value)}
+						onBlur={() => validate()}
+						aria-invalid={!!errors.phone}
+						className={errors.phone ? "border-red-500 focus:ring-red-500" : ""}
+					/>
+					{errors.phone && (
+						<p className="text-sm text-red-600" role="alert">
+							{errors.phone}
+						</p>
+					)}
+				</div>
 			</div>
 
-			{/* Họ và tên */}
+			{/* Địa chỉ - Full width */}
 			<div className="space-y-2">
-				<Label htmlFor={`${id}-full_name`} className="text-sm font-medium">
-					Họ và tên <span className="text-red-500">*</span>
-				</Label>
-				<Input
-					id={`${id}-full_name`}
-					type="text"
-					placeholder="Nhập họ và tên"
-					value={formData.full_name}
-					onChange={(e) => handleChange("full_name", e.target.value)}
-					onBlur={() => validate()}
-					aria-invalid={!!errors.full_name}
-					required
-					className={
-						errors.full_name ? "border-red-500 focus:ring-red-500" : ""
-					}
-				/>
-				{errors.full_name && (
-					<p className="text-sm text-red-600" role="alert">
-						{errors.full_name}
-					</p>
-				)}
-			</div>
-
-			{/* Ngày sinh */}
-			<div className="space-y-2">
-				<Label htmlFor={`${id}-date_of_birth`} className="text-sm font-medium">
-					Ngày sinh
-				</Label>
-				<Input
-					id={`${id}-date_of_birth`}
-					type="date"
-					value={formData.date_of_birth}
-					onChange={(e) => handleChange("date_of_birth", e.target.value)}
-					onBlur={() => validate()}
-					aria-invalid={!!errors.date_of_birth}
-					className={
-						errors.date_of_birth
-							? "border-red-500 focus:ring-red-500"
-							: ""
-					}
-				/>
-				{errors.date_of_birth && (
-					<p className="text-sm text-red-600" role="alert">
-						{errors.date_of_birth}
-					</p>
-				)}
-			</div>
-
-			{/* Giới tính */}
-			<div className="space-y-2">
-				<Label htmlFor={`${id}-gender`} className="text-sm font-medium">
-					Giới tính
-				</Label>
-				<Select
-					value={formData.gender}
-					onValueChange={(value: string) => handleChange("gender", value)}
-				>
-					<SelectTrigger id={`${id}-gender`}>
-						<SelectValue placeholder="Chọn giới tính" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="male">Nam</SelectItem>
-						<SelectItem value="female">Nữ</SelectItem>
-						<SelectItem value="other">Khác</SelectItem>
-					</SelectContent>
-				</Select>
-			</div>
-
-			{/* Số điện thoại */}
-			<div className="space-y-2">
-				<Label htmlFor={`${id}-phone`} className="text-sm font-medium">
-					Số điện thoại
-				</Label>
-				<Input
-					id={`${id}-phone`}
-					type="tel"
-					placeholder="VD: 0901234567"
-					value={formData.phone}
-					onChange={(e) => handleChange("phone", e.target.value)}
-					onBlur={() => validate()}
-					aria-invalid={!!errors.phone}
-					className={errors.phone ? "border-red-500 focus:ring-red-500" : ""}
-				/>
-				{errors.phone && (
-					<p className="text-sm text-red-600" role="alert">
-						{errors.phone}
-					</p>
-				)}
-			</div>
-
-			{/* Địa chỉ */}
-			<div className="space-y-2">
-				<Label htmlFor={`${id}-address`} className="text-sm font-medium">
+				<Label htmlFor={`${id}-address`} className="text-sm font-medium text-gray-700">
 					Địa chỉ
 				</Label>
 				<Input

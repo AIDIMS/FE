@@ -410,7 +410,7 @@ export default function PatientsPage() {
 
 				{/* Add/Edit Dialog */}
 				<Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-					<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-gray-200">
+					<DialogContent className="!max-w-[85vw] !w-full !max-h-[90vh] overflow-y-auto border-gray-200 sm:!max-w-[85vw] md:!max-w-[75vw] lg:!max-w-[65vw] xl:!max-w-[60vw] 2xl:!max-w-[55vw]">
 						<DialogHeader className="pb-4 border-b border-gray-200">
 							<DialogTitle className="text-xl font-semibold text-gray-900">
 								{selectedPatient ? "Sửa thông tin bệnh nhân" : "Thêm bệnh nhân mới"}

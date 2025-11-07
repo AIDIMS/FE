@@ -28,10 +28,10 @@ export function PatientDetailDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+			<DialogContent className="!max-w-[85vw] !w-full !max-h-[90vh] overflow-y-auto sm:!max-w-[85vw] md:!max-w-[80vw] lg:!max-w-[75vw] xl:!max-w-[70vw] 2xl:!max-w-[65vw]">
 				<DialogHeader>
-					<DialogTitle>Chi tiết bệnh nhân</DialogTitle>
-					<DialogDescription>
+					<DialogTitle className="text-2xl font-bold text-gray-900">Chi tiết bệnh nhân</DialogTitle>
+					<DialogDescription className="text-base text-gray-600">
 						Thông tin chi tiết và lịch sử khám bệnh
 					</DialogDescription>
 				</DialogHeader>
@@ -40,35 +40,35 @@ export function PatientDetailDialog({
 					{/* Thông tin cơ bản */}
 					<Card>
 						<CardHeader>
-							<CardTitle>Thông tin cơ bản</CardTitle>
+							<CardTitle className="text-lg font-semibold">Thông tin cơ bản</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<div className="grid grid-cols-2 gap-4">
+							<div className="grid grid-cols-3 gap-6">
 								<div>
-									<p className="text-sm text-muted-foreground">Mã bệnh nhân</p>
-									<p className="font-medium">{patient.patient_code}</p>
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Mã bệnh nhân</p>
+									<p className="font-semibold text-gray-900 text-base">{patient.patient_code}</p>
 								</div>
 								<div>
-									<p className="text-sm text-muted-foreground">Họ và tên</p>
-									<p className="font-medium">{patient.full_name}</p>
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Họ và tên</p>
+									<p className="font-semibold text-gray-900 text-base">{patient.full_name}</p>
 								</div>
 								<div>
-									<p className="text-sm text-muted-foreground">Ngày sinh</p>
-									<p className="font-medium">
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Ngày sinh</p>
+									<p className="font-semibold text-gray-900 text-base">
 										{formatDate(patient.date_of_birth)}
 									</p>
 								</div>
 								<div>
-									<p className="text-sm text-muted-foreground">Giới tính</p>
-									<p className="font-medium">{formatGender(patient.gender)}</p>
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Giới tính</p>
+									<p className="font-semibold text-gray-900 text-base">{formatGender(patient.gender)}</p>
 								</div>
 								<div>
-									<p className="text-sm text-muted-foreground">Số điện thoại</p>
-									<p className="font-medium">{patient.phone || "N/A"}</p>
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Số điện thoại</p>
+									<p className="font-semibold text-gray-900 text-base">{patient.phone || "N/A"}</p>
 								</div>
-								<div>
-									<p className="text-sm text-muted-foreground">Địa chỉ</p>
-									<p className="font-medium">{patient.address || "N/A"}</p>
+								<div className="col-span-3">
+									<p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Địa chỉ</p>
+									<p className="font-semibold text-gray-900 text-base">{patient.address || "N/A"}</p>
 								</div>
 							</div>
 						</CardContent>
@@ -78,8 +78,8 @@ export function PatientDetailDialog({
 					{patient.visits && patient.visits.length > 0 && (
 						<Card>
 							<CardHeader>
-								<CardTitle>Lịch sử khám bệnh</CardTitle>
-								<CardDescription>
+								<CardTitle className="text-lg font-semibold">Lịch sử khám bệnh</CardTitle>
+								<CardDescription className="text-sm">
 									{patient.visits.length} lượt khám
 								</CardDescription>
 							</CardHeader>
@@ -88,7 +88,7 @@ export function PatientDetailDialog({
 									{patient.visits.map((visit) => (
 										<div
 											key={visit.id}
-											className="border rounded-lg p-4 space-y-2"
+											className="border border-gray-200 rounded-xl p-5 space-y-3 bg-gray-50/50 hover:bg-gray-50 transition-colors"
 										>
 											<div className="flex justify-between items-start">
 												<div>
@@ -119,8 +119,8 @@ export function PatientDetailDialog({
 					{patient.imaging_orders && patient.imaging_orders.length > 0 && (
 						<Card>
 							<CardHeader>
-								<CardTitle>Lịch sử chỉ định chụp</CardTitle>
-								<CardDescription>
+								<CardTitle className="text-lg font-semibold">Lịch sử chỉ định chụp</CardTitle>
+								<CardDescription className="text-sm">
 									{patient.imaging_orders.length} chỉ định
 								</CardDescription>
 							</CardHeader>
@@ -129,7 +129,7 @@ export function PatientDetailDialog({
 									{patient.imaging_orders.map((order) => (
 										<div
 											key={order.id}
-											className="border rounded-lg p-4 space-y-2"
+											className="border border-gray-200 rounded-xl p-5 space-y-3 bg-gray-50/50 hover:bg-gray-50 transition-colors"
 										>
 											<div className="flex justify-between items-start">
 												<div>
