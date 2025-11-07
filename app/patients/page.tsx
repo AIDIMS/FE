@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { PatientForm } from "@/components/patients/patient-form"
 import { PatientTable } from "@/components/patients/patient-table"
-import { PatientDetailDialog } from "@/components/patients/patient-detail-dialog"
 import { Patient, PatientWithDetails } from "@/lib/types/patient"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Plus, Search, Filter, Users } from "lucide-react"
@@ -24,9 +23,7 @@ export default function PatientsPage() {
 	const [searchQuery, setSearchQuery] = useState("")
 	const [isLoading, setIsLoading] = useState(false)
 	const [isFormOpen, setIsFormOpen] = useState(false)
-	const [isDetailOpen, setIsDetailOpen] = useState(false)
 	const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
-	const [detailPatient, setDetailPatient] = useState<PatientWithDetails | null>(null)
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
 	// Mock data - sẽ thay thế bằng API call thực tế
@@ -156,24 +153,6 @@ export default function PatientsPage() {
 	const handleEdit = (patient: Patient) => {
 		setSelectedPatient(patient)
 		setIsFormOpen(true)
-	}
-
-	const handleView = async (patient: Patient) => {
-		setDetailPatient(null)
-		setIsDetailOpen(true)
-		
-		// Load patient details with visits and imaging orders
-		try {
-			// Mock data - thay thế bằng API call
-			const patientWithDetails: PatientWithDetails = {
-				...patient,
-				visits: [],
-				imaging_orders: [],
-			}
-			setDetailPatient(patientWithDetails)
-		} catch (error) {
-			console.error("Error loading patient details:", error)
-		}
 	}
 
 	const handleDelete = async (patient: Patient) => {
@@ -398,13 +377,13 @@ export default function PatientsPage() {
 						</div>
 					</CardHeader>
 					<CardContent className="p-0">
-						<PatientTable
-							patients={filteredPatients}
-							onView={handleView}
-							onEdit={handleEdit}
-							onDelete={handleDelete}
-							isLoading={isLoading}
-						/>
+					<PatientTable
+						patients={filteredPatients}
+						onView={() => {}} // Not used anymore, navigate directly
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+						isLoading={isLoading}
+					/>
 					</CardContent>
 				</Card>
 
@@ -432,12 +411,6 @@ export default function PatientsPage() {
 					</DialogContent>
 				</Dialog>
 
-				{/* Detail Dialog */}
-				<PatientDetailDialog
-					patient={detailPatient}
-					open={isDetailOpen}
-					onOpenChange={setIsDetailOpen}
-				/>
 			</div>
 		</DashboardLayout>
 	)

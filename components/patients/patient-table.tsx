@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { useRouter } from "next/navigation"
 import {
 	Table,
 	TableBody,
@@ -37,6 +38,12 @@ export function PatientTable({
 	onDelete,
 	isLoading = false,
 }: PatientTableProps) {
+	const router = useRouter()
+
+	const handleViewClick = (patient: Patient, e: React.MouseEvent) => {
+		e.stopPropagation()
+		router.push(`/patients/${patient.id}`)
+	}
 
 	if (isLoading) {
 		return (
@@ -145,7 +152,7 @@ export function PatientTable({
 						<TableRow
 							key={patient.id}
 							className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors cursor-pointer group"
-							onClick={() => onView(patient)}
+							onClick={() => router.push(`/patients/${patient.id}`)}
 						>
 							<TableCell className="h-16">
 								<input
@@ -201,10 +208,7 @@ export function PatientTable({
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-48">
 										<DropdownMenuItem
-											onClick={(e) => {
-												e.stopPropagation()
-												onView(patient)
-											}}
+											onClick={(e) => handleViewClick(patient, e)}
 											className="cursor-pointer"
 										>
 											<Eye className="mr-2 h-4 w-4" />

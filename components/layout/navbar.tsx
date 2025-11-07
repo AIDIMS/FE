@@ -21,7 +21,46 @@ const breadcrumbMap: Record<string, string> = {
 
 export function Navbar({ onSidebarToggle }: NavbarProps) {
 	const pathname = usePathname()
-	const currentPage = breadcrumbMap[pathname] || ""
+	
+	// Build dynamic breadcrumbs
+	const getBreadcrumbs = () => {
+		const segments = pathname.split("/").filter(Boolean)
+		const breadcrumbs: Array<{ label: string; href: string }> = []
+		
+		// Always start with dashboard
+		breadcrumbs.push({ label: "DicomPro", href: "/dashboard" })
+		
+		if (segments.length === 0) return breadcrumbs
+		
+		// Build path incrementally
+		let currentPath = ""
+		segments.forEach((segment, index) => {
+			currentPath += `/${segment}`
+			
+			// Check if it's a known route
+			if (breadcrumbMap[currentPath]) {
+				breadcrumbs.push({
+					label: breadcrumbMap[currentPath],
+					href: currentPath,
+				})
+			} else if (currentPath.startsWith("/patients/") && segments.length > 1) {
+				// Dynamic route for patient detail
+				breadcrumbs.push({
+					label: "Chi tiết bệnh nhân",
+					href: currentPath,
+				})
+			} else if (currentPath.startsWith("/records/")) {
+				breadcrumbs.push({
+					label: "Chi tiết hồ sơ",
+					href: currentPath,
+				})
+			}
+		})
+		
+		return breadcrumbs
+	}
+	
+	const breadcrumbs = getBreadcrumbs()
 
 	return (
 		<header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6">
@@ -29,15 +68,21 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 
 			{/* Breadcrumbs */}
 			<div className="hidden md:flex items-center gap-2 text-sm text-gray-500">
-				<Link href="/dashboard" className="hover:text-gray-700 flex items-center gap-2">
-					<span>DicomPro</span>
-				</Link>
-				{currentPage && (
-					<>
-						<ChevronRight className="h-4 w-4" />
-						<span className="text-gray-900 font-medium">{currentPage}</span>
-					</>
-				)}
+				{breadcrumbs.map((crumb, index) => (
+					<React.Fragment key={crumb.href}>
+						{index > 0 && <ChevronRight className="h-4 w-4 text-gray-400" />}
+						{index === breadcrumbs.length - 1 ? (
+							<span className="text-gray-900 font-medium">{crumb.label}</span>
+						) : (
+							<Link 
+								href={crumb.href} 
+								className="hover:text-gray-700 transition-colors"
+							>
+								{crumb.label}
+							</Link>
+						)}
+					</React.Fragment>
+				))}
 			</div>
 
 			{/* Right side actions */}
