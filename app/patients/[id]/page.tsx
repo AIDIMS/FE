@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { PatientWithDetails, PatientVisit } from "@/lib/types/patient"
 import { formatDate, formatGender } from "@/lib/utils/date"
-import { ArrowLeft, Plus, Pencil, Trash2, UserCircle, Phone, MapPin, Cake } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Trash2, UserCircle, Phone, MapPin, Cake, FileText } from "lucide-react"
+import { PatientVisitForm } from "@/components/patients/patient-visit-form"
 import {
 	Dialog,
 	DialogContent,
@@ -125,6 +126,42 @@ export default function PatientDetailPage() {
 			// Handle delete
 			setVisits((prev) => prev.filter((v) => v.id !== visit.id))
 		}
+	}
+
+	const handleSubmitVisit = async (data: Partial<PatientVisit>) => {
+		// Simulate API call
+		await new Promise((resolve) => setTimeout(resolve, 800))
+
+		if (selectedVisit) {
+			// Update existing visit
+			setVisits((prev) =>
+				prev.map((v) =>
+					v.id === selectedVisit.id
+						? { ...v, ...data, updated_at: new Date().toISOString() }
+						: v
+				)
+			)
+		} else {
+			// Create new visit
+			const newVisit: PatientVisit = {
+				id: Math.random().toString(36).substr(2, 9),
+				patient_id: patientId,
+				assigned_doctor_id: data.assigned_doctor_id || null,
+				symptoms: data.symptoms || "",
+				status: data.status || "waiting",
+				created_at: new Date().toISOString(),
+				created_by: null,
+				updated_at: null,
+				updated_by: null,
+				is_deleted: false,
+				deleted_at: null,
+				deleted_by: null,
+			}
+			setVisits((prev) => [newVisit, ...prev])
+		}
+
+		setIsVisitFormOpen(false)
+		setSelectedVisit(null)
 	}
 
 	if (isLoading) {
@@ -308,7 +345,8 @@ export default function PatientDetailPage() {
 										{visits.map((visit) => (
 											<TableRow
 												key={visit.id}
-												className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors group"
+												className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors group cursor-pointer"
+												onClick={() => router.push(`/visits/${visit.id}`)}
 											>
 												<TableCell className="h-20">
 													<div className="flex items-center gap-3">
@@ -344,6 +382,10 @@ export default function PatientDetailPage() {
 																? "bg-green-100 text-green-800 border border-green-200"
 																: visit.status === "in_progress"
 																? "bg-blue-100 text-blue-800 border border-blue-200"
+																: visit.status === "waiting"
+																? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+																: visit.status === "cancelled"
+																? "bg-red-100 text-red-800 border border-red-200"
 																: "bg-gray-100 text-gray-800 border border-gray-200"
 														}`}
 													>
@@ -351,6 +393,10 @@ export default function PatientDetailPage() {
 															? "Hoàn thành"
 															: visit.status === "in_progress"
 															? "Đang xử lý"
+															: visit.status === "waiting"
+															? "Chờ khám"
+															: visit.status === "cancelled"
+															? "Đã hủy"
 															: visit.status}
 													</span>
 												</TableCell>
@@ -374,6 +420,7 @@ export default function PatientDetailPage() {
 																variant="ghost"
 																size="icon"
 																className="h-8 w-8 text-gray-400 hover:text-gray-900 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+																onClick={(e) => e.stopPropagation()}
 															>
 																<MoreVertical className="h-4 w-4" />
 																<span className="sr-only">Mở menu</span>
@@ -381,7 +428,20 @@ export default function PatientDetailPage() {
 														</DropdownMenuTrigger>
 														<DropdownMenuContent align="end" className="w-48">
 															<DropdownMenuItem
-																onClick={() => handleEditVisit(visit)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	router.push(`/visits/${visit.id}`)
+																}}
+																className="cursor-pointer"
+															>
+																<FileText className="mr-2 h-4 w-4" />
+																Xem chi tiết
+															</DropdownMenuItem>
+															<DropdownMenuItem
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handleEditVisit(visit)
+																}}
 																className="cursor-pointer"
 															>
 																<Pencil className="mr-2 h-4 w-4" />
@@ -389,7 +449,10 @@ export default function PatientDetailPage() {
 															</DropdownMenuItem>
 															<DropdownMenuSeparator />
 															<DropdownMenuItem
-																onClick={() => handleDeleteVisit(visit)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handleDeleteVisit(visit)
+																}}
 																className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
 															>
 																<Trash2 className="mr-2 h-4 w-4" />
@@ -409,7 +472,7 @@ export default function PatientDetailPage() {
 
 				{/* Visit Form Dialog */}
 				<Dialog open={isVisitFormOpen} onOpenChange={setIsVisitFormOpen}>
-					<DialogContent className="!max-w-2xl !w-full !max-h-[90vh] overflow-y-auto">
+					<DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
 						<DialogHeader>
 							<DialogTitle>
 								{selectedVisit ? "Sửa ca khám" : "Thêm ca khám mới"}
@@ -417,14 +480,18 @@ export default function PatientDetailPage() {
 							<DialogDescription>
 								{selectedVisit
 									? "Cập nhật thông tin ca khám"
-									: "Điền thông tin để thêm ca khám mới"}
+									: "Điền thông tin để thêm ca khám mới cho bệnh nhân"}
 							</DialogDescription>
 						</DialogHeader>
-						<div className="py-4">
-							<p className="text-sm text-gray-600">
-								Form thêm/sửa ca khám sẽ được triển khai ở đây
-							</p>
-						</div>
+						<PatientVisitForm
+							patientId={patientId}
+							visit={selectedVisit}
+							onSubmit={handleSubmitVisit}
+							onCancel={() => {
+								setIsVisitFormOpen(false)
+								setSelectedVisit(null)
+							}}
+						/>
 					</DialogContent>
 				</Dialog>
 			</div>

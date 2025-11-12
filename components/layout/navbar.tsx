@@ -15,6 +15,7 @@ interface NavbarProps {
 const breadcrumbMap: Record<string, string> = {
 	"/dashboard": "Tổng quan",
 	"/patients": "Bệnh nhân",
+	"/visits": "Ca khám",
 	"/records": "Hồ sơ",
 	"/settings": "Cài đặt",
 }
@@ -55,6 +56,12 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 				// Dynamic route for patient detail
 				breadcrumbs.push({
 					label: "Chi tiết bệnh nhân",
+					href: currentPath,
+				})
+			} else if (currentPath.startsWith("/visits/") && segments.length > 1) {
+				// Dynamic route for visit detail
+				breadcrumbs.push({
+					label: "Chi tiết ca khám",
 					href: currentPath,
 				})
 			} else if (currentPath.startsWith("/records/")) {
