@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, FileText, Settings, LogOut, Menu, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Stethoscope, UserPlus, Camera, Settings, LogOut, Menu, UserCog, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -14,35 +14,45 @@ interface NavItem {
 	title: string;
 	href: string;
 	icon: React.ReactNode;
-	adminOnly?: boolean;
+	roles?: number[]; // 0=admin, 1=doctor, 2=receptionist, 3=technician
 }
 
 const navItems: NavItem[] = [
 	{
-		title: 'Tổng quan',
-		href: '/dashboard',
-		icon: <LayoutDashboard className="h-5 w-5" />,
-	},
-	{
-		title: 'Người dùng',
+		title: 'Quản lý người dùng',
 		href: '/users',
 		icon: <UserCog className="h-5 w-5" />,
-		adminOnly: true,
+		roles: [0], // Admin only
+	},
+	{
+		title: 'Lễ tân',
+		href: '/receptionist',
+		icon: <UserPlus className="h-5 w-5" />,
+		roles: [0, 2], // Admin & Receptionist
+	},
+	{
+		title: 'Hàng chờ khám',
+		href: '/doctor/queue',
+		icon: <Stethoscope className="h-5 w-5" />,
+		roles: [0, 1], // Admin & Doctor
+	},
+	{
+		title: 'Danh sách chụp',
+		href: '/technician/worklist',
+		icon: <Camera className="h-5 w-5" />,
+		roles: [0, 3], // Admin & Technician
 	},
 	{
 		title: 'Bệnh nhân',
 		href: '/patients',
 		icon: <Users className="h-5 w-5" />,
-	},
-	{
-		title: 'Hồ sơ',
-		href: '/records',
-		icon: <FileText className="h-5 w-5" />,
+		roles: [0, 1, 2], // Admin, Doctor, Receptionist
 	},
 	{
 		title: 'Cài đặt',
 		href: '/settings',
 		icon: <Settings className="h-5 w-5" />,
+		roles: [0, 1, 2, 3], // All roles
 	},
 ];
 
@@ -93,8 +103,8 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) 
 			{/* Navigation */}
 			<nav className="flex-1 space-y-1 p-4">
 				{navItems.map(item => {
-					// Hide admin-only items for non-admin users
-					if (item.adminOnly && user?.role !== 0) {
+					// Filter by user role
+					if (item.roles && user?.role !== undefined && !item.roles.includes(user.role)) {
 						return null;
 					}
 

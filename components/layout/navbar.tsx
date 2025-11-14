@@ -7,6 +7,7 @@ import { Bell, Search, User, Menu, ChevronRight, Check } from "lucide-react"
 import { SidebarTrigger } from "./sidebar"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import { useAuth } from "@/lib/contexts/auth-context"
 
 interface NavbarProps {
 	onSidebarToggle: () => void
@@ -14,14 +15,30 @@ interface NavbarProps {
 
 const breadcrumbMap: Record<string, string> = {
 	"/dashboard": "Tổng quan",
+	"/users": "Quản lý người dùng",
+	"/receptionist": "Lễ tân",
+	"/doctor/queue": "Hàng chờ khám",
+	"/technician/worklist": "Danh sách chụp",
 	"/patients": "Bệnh nhân",
 	"/visits": "Ca khám",
-	"/records": "Hồ sơ",
 	"/settings": "Cài đặt",
 }
 
 export function Navbar({ onSidebarToggle }: NavbarProps) {
 	const pathname = usePathname()
+	const { user } = useAuth()
+	
+	// Get role label
+	const getRoleLabel = () => {
+		if (!user) return "Người dùng"
+		switch (user.role) {
+			case 0: return "Admin"
+			case 1: return "Bác sĩ"
+			case 2: return "Lễ tân"
+			case 3: return "Kỹ thuật viên"
+			default: return "Người dùng"
+		}
+	}
 	
 	// Build dynamic breadcrumbs
 	const getBreadcrumbs = () => {
@@ -64,9 +81,10 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 					label: "Chi tiết ca khám",
 					href: currentPath,
 				})
-			} else if (currentPath.startsWith("/records/")) {
+			} else if (currentPath.startsWith("/technician/orders/") && segments.length > 2) {
+				// Dynamic route for technician execution
 				breadcrumbs.push({
-					label: "Chi tiết hồ sơ",
+					label: "Thực hiện chụp",
 					href: currentPath,
 				})
 			}
@@ -112,20 +130,19 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 				{/* User menu */}
 				<div className="flex items-center gap-3">
 					<div className="hidden sm:flex items-center gap-2">
-						<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-							<User className="h-5 w-5 text-gray-600" />
+						<div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+							<User className="h-4 w-4 text-slate-600" />
 						</div>
 						<div className="flex flex-col">
-							<span className="text-sm font-medium text-gray-900">Bác sĩ</span>
-							<div className="flex items-center gap-1">
-								<Check className="h-3 w-3 text-blue-500" />
-								<span className="text-xs text-gray-500">Online</span>
-							</div>
+							<span className="text-sm font-medium text-slate-900">
+								{user ? `${user.firstName} ${user.lastName}` : "Người dùng"}
+							</span>
+							<span className="text-xs text-slate-500">{getRoleLabel()}</span>
 						</div>
 					</div>
 					<Button variant="ghost" size="icon" className="rounded-full sm:hidden">
-						<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-							<User className="h-5 w-5 text-gray-600" />
+						<div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+							<User className="h-4 w-4 text-slate-600" />
 						</div>
 					</Button>
 				</div>
