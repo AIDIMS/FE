@@ -23,16 +23,17 @@ import { userService } from '@/lib/api';
 import { CreateUserDto, UpdateUserDto, UserListDto, UserRole, Department } from '@/lib/types';
 
 interface UserFormDialogProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onSuccess: () => void;
-	user?: UserListDto | null;
+	readonly open: boolean;
+	readonly onOpenChange: (open: boolean) => void;
+	readonly onSuccess: () => void;
+	readonly user?: UserListDto | null;
 }
 
 export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserFormDialogProps) {
 	const isEdit = !!user;
 
 	const [formData, setFormData] = useState({
+		username: '',
 		email: '',
 		password: '',
 		firstName: '',
@@ -40,7 +41,6 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 		phoneNumber: '',
 		role: UserRole.Doctor,
 		department: Department.Radiology,
-		isActive: true,
 	});
 
 	const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +49,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 	useEffect(() => {
 		if (user) {
 			setFormData({
+				username: user.username,
 				email: user.email,
 				password: '',
 				firstName: user.firstName,
@@ -56,10 +57,10 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 				phoneNumber: user.phoneNumber || '',
 				role: user.role,
 				department: user.department,
-				isActive: user.isActive,
 			});
 		} else {
 			setFormData({
+				username: '',
 				email: '',
 				password: '',
 				firstName: '',
@@ -67,7 +68,6 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 				phoneNumber: '',
 				role: UserRole.Doctor,
 				department: Department.Radiology,
-				isActive: true,
 			});
 		}
 		setError('');
@@ -84,7 +84,6 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 					firstName: formData.firstName,
 					lastName: formData.lastName,
 					phoneNumber: formData.phoneNumber || undefined,
-					isActive: formData.isActive,
 					role: formData.role,
 					department: formData.department,
 				};
@@ -104,6 +103,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 				}
 
 				const createData: CreateUserDto = {
+					username: formData.username,
 					email: formData.email,
 					password: formData.password,
 					firstName: formData.firstName,
@@ -147,6 +147,19 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 
 				<form onSubmit={handleSubmit}>
 					<div className="grid gap-4 py-4">
+						{/* Username */}
+						<div className="grid gap-2">
+							<Label htmlFor="username">Tên đăng nhập *</Label>
+							<Input
+								id="username"
+								value={formData.username}
+								onChange={e => setFormData({ ...formData, username: e.target.value })}
+								required
+								disabled={isEdit}
+								placeholder="Nhập tên đăng nhập"
+							/>
+						</div>
+
 						{/* Email */}
 						<div className="grid gap-2">
 							<Label htmlFor="email">Email *</Label>
@@ -220,7 +233,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 								<Select
 									value={formData.role.toString()}
 									onValueChange={value =>
-										setFormData({ ...formData, role: parseInt(value) as UserRole })
+										setFormData({ ...formData, role: Number.parseInt(value) as UserRole })
 									}
 								>
 									<SelectTrigger>
@@ -233,7 +246,6 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 											Chuyên viên X-quang
 										</SelectItem>
 										<SelectItem value={UserRole.Technician.toString()}>Kỹ thuật viên</SelectItem>
-										<SelectItem value={UserRole.Nurse.toString()}>Y tá</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -243,7 +255,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 								<Select
 									value={formData.department.toString()}
 									onValueChange={value =>
-										setFormData({ ...formData, department: parseInt(value) as Department })
+										setFormData({ ...formData, department: Number.parseInt(value) as Department })
 									}
 								>
 									<SelectTrigger>
@@ -253,31 +265,22 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 										<SelectItem value={Department.Radiology.toString()}>X-quang</SelectItem>
 										<SelectItem value={Department.Cardiology.toString()}>Tim mạch</SelectItem>
 										<SelectItem value={Department.Neurology.toString()}>Thần kinh</SelectItem>
+										<SelectItem value={Department.Oncology.toString()}>Ung thư</SelectItem>
+										<SelectItem value={Department.Pediatrics.toString()}>Nhi khoa</SelectItem>
+										<SelectItem value={Department.Emergency.toString()}>Cấp cứu</SelectItem>
 										<SelectItem value={Department.Orthopedics.toString()}>
 											Chấn thương chỉnh hình
 										</SelectItem>
-										<SelectItem value={Department.Emergency.toString()}>Cấp cứu</SelectItem>
-										<SelectItem value={Department.Other.toString()}>Khác</SelectItem>
+										<SelectItem value={Department.GeneralMedicine.toString()}>
+											Y học tổng quát
+										</SelectItem>
+										<SelectItem value={Department.PACS.toString()}>
+											Quản lý hình ảnh y tế (PACS)
+										</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
 						</div>
-
-						{/* Active Status (only for edit) */}
-						{isEdit && (
-							<div className="flex items-center gap-2">
-								<input
-									type="checkbox"
-									id="isActive"
-									checked={formData.isActive}
-									onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-									className="h-4 w-4 rounded border-gray-300"
-								/>
-								<Label htmlFor="isActive" className="cursor-pointer">
-									Tài khoản đang hoạt động
-								</Label>
-							</div>
-						)}
 
 						{/* Error Message */}
 						{error && (

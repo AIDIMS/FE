@@ -1,19 +1,21 @@
 export const API_CONFIG = {
-	BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5104/api',
-	TIMEOUT: 30000, // 30 seconds
+	BASE_URL: process.env.NEXT_PUBLIC_API_URL,
+	TIMEOUT: 30000,
 } as const;
 
 export const API_ENDPOINTS = {
 	AUTH: {
 		LOGIN: '/Auth/login',
-		REGISTER: '/Auth/register',
-		REFRESH: '/Auth/refresh',
 		LOGOUT: '/Auth/logout',
+		REFRESH: '/Auth/refresh-token',
 		CHANGE_PASSWORD: '/Auth/change-password',
+		PROFILE: '/Auth/me',
+		VALIDATE_TOKEN: '/Auth/validate-token',
 	},
 	USERS: {
 		BASE: '/Users',
 		BY_ID: (id: string) => `/Users/${id}`,
+		IDENTIFY: (id: string) => `/Users/identify/${id}`,
 	},
 	PATIENTS: {
 		BASE: '/Patients',

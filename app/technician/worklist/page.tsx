@@ -1,258 +1,258 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { 
-	Camera, 
-	Search, 
-	Filter, 
-	Clock, 
-	User, 
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+	Camera,
+	Search,
+	Filter,
+	Clock,
+	User,
 	FileText,
 	AlertCircle,
 	CheckCircle2,
 	XCircle,
-	MoreVertical
-} from "lucide-react"
-import { formatDate } from "@/lib/utils/date"
+	MoreVertical,
+} from 'lucide-react';
+import { formatDate } from '@/lib/utils/date';
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select';
 
 interface ImagingOrder {
-	id: string
-	visit_id: string
-	patient_name: string
-	patient_code: string
-	patient_gender: "male" | "female" | "other"
-	patient_age: number
-	modality_requested: string
-	body_part_requested: string
-	reason_for_study: string | null
-	requesting_doctor: string
-	status: "pending" | "in_progress" | "completed" | "cancelled"
-	priority: "normal" | "urgent" | "stat"
-	created_at: string
-	scheduled_time?: string
+	id: string;
+	visit_id: string;
+	patient_name: string;
+	patient_code: string;
+	patient_gender: 'male' | 'female' | 'other';
+	patient_age: number;
+	modality_requested: string;
+	body_part_requested: string;
+	reason_for_study: string | null;
+	requesting_doctor: string;
+	status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+	priority: 'normal' | 'urgent' | 'stat';
+	created_at: string;
+	scheduled_time?: string;
 }
 
 export default function TechnicianWorklist() {
-	const router = useRouter()
-	const [orders, setOrders] = useState<ImagingOrder[]>([])
-	const [filteredOrders, setFilteredOrders] = useState<ImagingOrder[]>([])
-	const [searchQuery, setSearchQuery] = useState("")
-	const [modalityFilter, setModalityFilter] = useState<string>("all")
-	const [statusFilter, setStatusFilter] = useState<string>("pending")
-	const [isLoading, setIsLoading] = useState(true)
+	const router = useRouter();
+	const [orders, setOrders] = useState<ImagingOrder[]>([]);
+	const [filteredOrders, setFilteredOrders] = useState<ImagingOrder[]>([]);
+	const [searchQuery, setSearchQuery] = useState('');
+	const [modalityFilter, setModalityFilter] = useState<string>('all');
+	const [statusFilter, setStatusFilter] = useState<string>('pending');
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		loadOrders()
-	}, [])
+		loadOrders();
+	}, []);
 
 	useEffect(() => {
-		filterOrders()
-	}, [orders, searchQuery, modalityFilter, statusFilter])
+		filterOrders();
+	}, [orders, searchQuery, modalityFilter, statusFilter]);
 
 	const loadOrders = async () => {
-		setIsLoading(true)
+		setIsLoading(true);
 		try {
 			// Mock data - sẽ thay thế bằng API call
-			await new Promise((resolve) => setTimeout(resolve, 500))
+			await new Promise(resolve => setTimeout(resolve, 500));
 
 			const mockOrders: ImagingOrder[] = [
 				{
-					id: "ord1",
-					visit_id: "visit1",
-					patient_name: "Nguyễn Văn A",
-					patient_code: "BN001",
-					patient_gender: "male",
+					id: 'ord1',
+					visit_id: 'visit1',
+					patient_name: 'Nguyễn Văn A',
+					patient_code: 'BN001',
+					patient_gender: 'male',
 					patient_age: 45,
-					modality_requested: "CT",
-					body_part_requested: "Đầu",
-					reason_for_study: "Nghi ngờ chấn thương sọ não sau tai nạn",
-					requesting_doctor: "BS. Trần Thị B",
-					status: "pending",
-					priority: "urgent",
+					modality_requested: 'CT',
+					body_part_requested: 'Đầu',
+					reason_for_study: 'Nghi ngờ chấn thương sọ não sau tai nạn',
+					requesting_doctor: 'BS. Trần Thị B',
+					status: 'pending',
+					priority: 'urgent',
 					created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
 				},
 				{
-					id: "ord2",
-					visit_id: "visit2",
-					patient_name: "Trần Thị C",
-					patient_code: "BN002",
-					patient_gender: "female",
+					id: 'ord2',
+					visit_id: 'visit2',
+					patient_name: 'Trần Thị C',
+					patient_code: 'BN002',
+					patient_gender: 'female',
 					patient_age: 32,
-					modality_requested: "X-Ray",
-					body_part_requested: "Ngực",
-					reason_for_study: "Kiểm tra phổi, ho kéo dài",
-					requesting_doctor: "BS. Lê Văn D",
-					status: "pending",
-					priority: "normal",
+					modality_requested: 'X-Ray',
+					body_part_requested: 'Ngực',
+					reason_for_study: 'Kiểm tra phổi, ho kéo dài',
+					requesting_doctor: 'BS. Lê Văn D',
+					status: 'pending',
+					priority: 'normal',
 					created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
 				},
 				{
-					id: "ord3",
-					visit_id: "visit3",
-					patient_name: "Lê Minh E",
-					patient_code: "BN003",
-					patient_gender: "male",
+					id: 'ord3',
+					visit_id: 'visit3',
+					patient_name: 'Lê Minh E',
+					patient_code: 'BN003',
+					patient_gender: 'male',
 					patient_age: 28,
-					modality_requested: "MRI",
-					body_part_requested: "Cột sống",
-					reason_for_study: "Đau lưng mãn tính",
-					requesting_doctor: "BS. Phạm Thị F",
-					status: "in_progress",
-					priority: "normal",
+					modality_requested: 'MRI',
+					body_part_requested: 'Cột sống',
+					reason_for_study: 'Đau lưng mãn tính',
+					requesting_doctor: 'BS. Phạm Thị F',
+					status: 'in_progress',
+					priority: 'normal',
 					created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
 				},
 				{
-					id: "ord4",
-					visit_id: "visit4",
-					patient_name: "Phạm Thị G",
-					patient_code: "BN004",
-					patient_gender: "female",
+					id: 'ord4',
+					visit_id: 'visit4',
+					patient_name: 'Phạm Thị G',
+					patient_code: 'BN004',
+					patient_gender: 'female',
 					patient_age: 55,
-					modality_requested: "CT",
-					body_part_requested: "Bụng",
-					reason_for_study: "Đau bụng, nghi ngờ viêm ruột thừa",
-					requesting_doctor: "BS. Hoàng Văn H",
-					status: "pending",
-					priority: "stat",
+					modality_requested: 'CT',
+					body_part_requested: 'Bụng',
+					reason_for_study: 'Đau bụng, nghi ngờ viêm ruột thừa',
+					requesting_doctor: 'BS. Hoàng Văn H',
+					status: 'pending',
+					priority: 'stat',
 					created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
 				},
 				{
-					id: "ord5",
-					visit_id: "visit5",
-					patient_name: "Hoàng Văn I",
-					patient_code: "BN005",
-					patient_gender: "male",
+					id: 'ord5',
+					visit_id: 'visit5',
+					patient_name: 'Hoàng Văn I',
+					patient_code: 'BN005',
+					patient_gender: 'male',
 					patient_age: 67,
-					modality_requested: "X-Ray",
-					body_part_requested: "Cột sống",
-					reason_for_study: "Kiểm tra xương",
-					requesting_doctor: "BS. Trần Thị B",
-					status: "completed",
-					priority: "normal",
+					modality_requested: 'X-Ray',
+					body_part_requested: 'Cột sống',
+					reason_for_study: 'Kiểm tra xương',
+					requesting_doctor: 'BS. Trần Thị B',
+					status: 'completed',
+					priority: 'normal',
 					created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
 				},
-			]
+			];
 
-			setOrders(mockOrders)
+			setOrders(mockOrders);
 		} catch (error) {
-			console.error("Error loading orders:", error)
+			console.error('Error loading orders:', error);
 		} finally {
-			setIsLoading(false)
+			setIsLoading(false);
 		}
-	}
+	};
 
 	const filterOrders = () => {
-		let filtered = [...orders]
+		let filtered = [...orders];
 
 		// Filter by status
-		if (statusFilter !== "all") {
-			filtered = filtered.filter((order) => order.status === statusFilter)
+		if (statusFilter !== 'all') {
+			filtered = filtered.filter(order => order.status === statusFilter);
 		}
 
 		// Filter by modality
-		if (modalityFilter !== "all") {
-			filtered = filtered.filter((order) => order.modality_requested === modalityFilter)
+		if (modalityFilter !== 'all') {
+			filtered = filtered.filter(order => order.modality_requested === modalityFilter);
 		}
 
 		// Filter by search query
 		if (searchQuery.trim()) {
-			const query = searchQuery.toLowerCase()
+			const query = searchQuery.toLowerCase();
 			filtered = filtered.filter(
-				(order) =>
+				order =>
 					order.patient_name.toLowerCase().includes(query) ||
 					order.patient_code.toLowerCase().includes(query) ||
 					order.body_part_requested.toLowerCase().includes(query)
-			)
+			);
 		}
 
 		// Sort by priority and time
 		filtered.sort((a, b) => {
 			// Priority order: stat > urgent > normal
-			const priorityOrder = { stat: 0, urgent: 1, normal: 2 }
+			const priorityOrder = { stat: 0, urgent: 1, normal: 2 };
 			if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-				return priorityOrder[a.priority] - priorityOrder[b.priority]
+				return priorityOrder[a.priority] - priorityOrder[b.priority];
 			}
 			// Then by time (oldest first)
-			return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-		})
+			return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+		});
 
-		setFilteredOrders(filtered)
-	}
+		setFilteredOrders(filtered);
+	};
 
 	const handleOrderClick = (orderId: string) => {
-		router.push(`/technician/orders/${orderId}`)
-	}
+		router.push(`/technician/orders/${orderId}`);
+	};
 
 	const getWaitingTime = (createdAt: string) => {
-		const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
-		if (minutes < 60) return `${minutes}m`
-		const hours = Math.floor(minutes / 60)
-		const remainingMinutes = minutes % 60
-		return `${hours}h ${remainingMinutes}m`
-	}
+		const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+		if (minutes < 60) return `${minutes}m`;
+		const hours = Math.floor(minutes / 60);
+		const remainingMinutes = minutes % 60;
+		return `${hours}h ${remainingMinutes}m`;
+	};
 
 	const getStatusIcon = (status: string) => {
 		switch (status) {
-			case "pending":
-				return <Clock className="h-4 w-4" />
-			case "in_progress":
-				return <AlertCircle className="h-4 w-4" />
-			case "completed":
-				return <CheckCircle2 className="h-4 w-4" />
-			case "cancelled":
-				return <XCircle className="h-4 w-4" />
+			case 'pending':
+				return <Clock className="h-4 w-4" />;
+			case 'in_progress':
+				return <AlertCircle className="h-4 w-4" />;
+			case 'completed':
+				return <CheckCircle2 className="h-4 w-4" />;
+			case 'cancelled':
+				return <XCircle className="h-4 w-4" />;
 			default:
-				return <Clock className="h-4 w-4" />
+				return <Clock className="h-4 w-4" />;
 		}
-	}
+	};
 
 	const getStatusLabel = (status: string) => {
 		const labels = {
-			pending: "Chờ thực hiện",
-			in_progress: "Đang thực hiện",
-			completed: "Hoàn thành",
-			cancelled: "Đã hủy",
-		}
-		return labels[status as keyof typeof labels] || status
-	}
+			pending: 'Chờ thực hiện',
+			in_progress: 'Đang thực hiện',
+			completed: 'Hoàn thành',
+			cancelled: 'Đã hủy',
+		};
+		return labels[status as keyof typeof labels] || status;
+	};
 
 	const getPriorityBadge = (priority: string) => {
 		switch (priority) {
-			case "stat":
+			case 'stat':
 				return (
 					<span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold uppercase rounded border border-red-300">
 						STAT
 					</span>
-				)
-			case "urgent":
+				);
+			case 'urgent':
 				return (
 					<span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-bold uppercase rounded border border-orange-300">
 						Urgent
 					</span>
-				)
+				);
 			default:
-				return null
+				return null;
 		}
-	}
+	};
 
 	const stats = {
-		pending: orders.filter((o) => o.status === "pending").length,
-		in_progress: orders.filter((o) => o.status === "in_progress").length,
-		completed: orders.filter((o) => o.status === "completed").length,
+		pending: orders.filter(o => o.status === 'pending').length,
+		in_progress: orders.filter(o => o.status === 'in_progress').length,
+		completed: orders.filter(o => o.status === 'completed').length,
 		total: orders.length,
-	}
+	};
 
 	return (
 		<DashboardLayout>
@@ -295,7 +295,9 @@ export default function TechnicianWorklist() {
 							<CardContent className="p-4 relative z-10">
 								<div className="flex items-center justify-between">
 									<div>
-										<p className="text-emerald-100 text-xs uppercase tracking-wide mb-1">Hoàn thành</p>
+										<p className="text-emerald-100 text-xs uppercase tracking-wide mb-1">
+											Hoàn thành
+										</p>
 										<p className="text-3xl font-bold tabular-nums">{stats.completed}</p>
 									</div>
 									<div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -332,7 +334,7 @@ export default function TechnicianWorklist() {
 										type="text"
 										placeholder="Tìm bệnh nhân, mã BN..."
 										value={searchQuery}
-										onChange={(e) => setSearchQuery(e.target.value)}
+										onChange={e => setSearchQuery(e.target.value)}
 										className="pl-10 h-10 bg-white border-slate-300 focus:border-blue-600"
 									/>
 								</div>
@@ -378,9 +380,7 @@ export default function TechnicianWorklist() {
 										Danh sách chỉ định
 									</CardTitle>
 								</div>
-								<div className="text-sm text-slate-500">
-									{filteredOrders.length} chỉ định
-								</div>
+								<div className="text-sm text-slate-500">{filteredOrders.length} chỉ định</div>
 							</div>
 						</CardHeader>
 						<CardContent className="p-0">
@@ -398,7 +398,7 @@ export default function TechnicianWorklist() {
 								</div>
 							) : (
 								<div className="divide-y divide-slate-100">
-									{filteredOrders.map((order) => (
+									{filteredOrders.map(order => (
 										<div
 											key={order.id}
 											onClick={() => handleOrderClick(order.id)}
@@ -422,7 +422,8 @@ export default function TechnicianWorklist() {
 															</span>
 															<span className="text-xs text-slate-400">•</span>
 															<span className="text-xs text-slate-500">
-																{order.patient_gender === "male" ? "Nam" : "Nữ"}, {order.patient_age}t
+																{order.patient_gender === 'male' ? 'Nam' : 'Nữ'},{' '}
+																{order.patient_age}t
 															</span>
 															{getPriorityBadge(order.priority)}
 														</div>
@@ -435,16 +436,20 @@ export default function TechnicianWorklist() {
 													<div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
 														<div>
 															<p className="text-slate-500 mb-0.5">Vùng chụp</p>
-															<p className="text-slate-900 font-medium">{order.body_part_requested}</p>
+															<p className="text-slate-900 font-medium">
+																{order.body_part_requested}
+															</p>
 														</div>
 														<div>
 															<p className="text-slate-500 mb-0.5">Bác sĩ chỉ định</p>
-															<p className="text-slate-900 font-medium">{order.requesting_doctor}</p>
+															<p className="text-slate-900 font-medium">
+																{order.requesting_doctor}
+															</p>
 														</div>
 														<div>
 															<p className="text-slate-500 mb-0.5">Lý do</p>
 															<p className="text-slate-700 line-clamp-1">
-																{order.reason_for_study || "Không có"}
+																{order.reason_for_study || 'Không có'}
 															</p>
 														</div>
 													</div>
@@ -460,8 +465,18 @@ export default function TechnicianWorklist() {
 												{/* Arrow indicator */}
 												<div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
 													<div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-														<svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+														<svg
+															className="h-4 w-4 text-white"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+														>
+															<path
+																strokeLinecap="round"
+																strokeLinejoin="round"
+																strokeWidth={2}
+																d="M9 5l7 7-7 7"
+															/>
 														</svg>
 													</div>
 												</div>
@@ -475,5 +490,5 @@ export default function TechnicianWorklist() {
 				</div>
 			</div>
 		</DashboardLayout>
-	)
+	);
 }

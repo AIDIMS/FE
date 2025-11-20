@@ -5,7 +5,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Stethoscope, UserPlus, Camera, Settings, LogOut, Menu, UserCog, ClipboardList } from 'lucide-react';
+import {
+	LayoutDashboard,
+	Users,
+	Stethoscope,
+	UserPlus,
+	Camera,
+	Settings,
+	LogOut,
+	Menu,
+	UserCog,
+	ClipboardList,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/contexts/auth-context';
@@ -62,7 +73,7 @@ interface SidebarProps {
 	onMobileClose?: () => void;
 }
 
-export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({ className, mobileOpen, onMobileClose }: Readonly<SidebarProps>) {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { logout, user } = useAuth();
@@ -74,10 +85,8 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) 
 		try {
 			setIsLoggingOut(true);
 			await logout();
-			// Router.push is called in logout function
 		} catch (error) {
 			console.error('Logout error:', error);
-			// Still redirect on error
 			router.push('/auth/login');
 		} finally {
 			setIsLoggingOut(false);
@@ -130,16 +139,6 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) 
 
 			{/* Footer */}
 			<div className="border-t border-gray-200 p-4">
-				{/* User Info */}
-				{user && (
-					<div className="mb-3 px-3 py-2 bg-gray-50 rounded-lg">
-						<p className="text-sm font-semibold text-gray-900 truncate">
-							{user.firstName} {user.lastName}
-						</p>
-						<p className="text-xs text-gray-500 truncate">{user.email}</p>
-					</div>
-				)}
-
 				<Button
 					variant="ghost"
 					disabled={isLoggingOut}
@@ -175,7 +174,7 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: SidebarProps) 
 	);
 }
 
-export function SidebarTrigger({ onClick }: { onClick: () => void }) {
+export function SidebarTrigger({ onClick }: Readonly<{ onClick: () => void }>) {
 	return (
 		<Button variant="ghost" size="icon" className="md:hidden" onClick={onClick}>
 			<Menu className="h-5 w-5" />
