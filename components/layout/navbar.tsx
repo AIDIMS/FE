@@ -15,6 +15,7 @@ interface NavbarProps {
 
 const breadcrumbMap: Record<string, string> = {
 	'/dashboard': 'Tổng quan',
+	'/users': 'Quản lý người dùng',
 	'/patients': 'Bệnh nhân',
 	'/visits': 'Ca khám',
 	'/records': 'Hồ sơ',
@@ -24,7 +25,6 @@ const breadcrumbMap: Record<string, string> = {
 
 export function Navbar({ onSidebarToggle }: NavbarProps) {
 	const pathname = usePathname();
-
 	const { user } = useAuth();
 
 	// Build dynamic breadcrumbs
@@ -44,7 +44,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 
 		// Build path incrementally
 		let currentPath = '';
-		segments.forEach((segment, index) => {
+		segments.forEach(segment => {
 			currentPath += `/${segment}`;
 
 			// Skip if it's the same as dashboard (already added)
