@@ -4,15 +4,47 @@ import { ApiResult, ApiError } from '../types/api';
 export class ApiClient {
 	private readonly baseURL: string;
 	private readonly timeout: number;
+	private isRefreshing = false;
+	private readonly failedQueue: Array<{
+		resolve: (value?: unknown) => void;
+		reject: (reason?: unknown) => void;
+	}> = [];
 
 	constructor() {
-		this.baseURL = API_CONFIG.BASE_URL;
+		this.baseURL = API_CONFIG.BASE_URL || '';
 		this.timeout = API_CONFIG.TIMEOUT;
 	}
 
-	/**
-	 * Get authorization header with token
-	 */
+	private decodeToken(token: string): { exp: number } | null {
+		try {
+			const base64Url = token.split('.')[1];
+			const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+			const jsonPayload = decodeURIComponent(
+				atob(base64)
+					.split('')
+					.map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+					.join('')
+			);
+			return JSON.parse(jsonPayload);
+		} catch {
+			return null;
+		}
+	}
+
+	private isTokenExpired(token: string): boolean {
+		const decoded = this.decodeToken(token);
+		if (!decoded || !decoded.exp) {
+			return true;
+		}
+
+		// Check if token will expire in the next 60 seconds (buffer time)
+		const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+		const currentTime = Date.now();
+		const bufferTime = 60 * 1000; // 60 seconds buffer
+
+		return expirationTime - currentTime < bufferTime;
+	}
+
 	private getAuthHeader(): HeadersInit {
 		const token = this.getToken();
 		if (token) {
@@ -23,50 +55,108 @@ export class ApiClient {
 		return {};
 	}
 
-	/**
-	 * Get token from localStorage
-	 */
 	private getToken(): string | null {
-		if (typeof window === 'undefined') return null;
+		if (globalThis.window === undefined) return null;
 		return localStorage.getItem('accessToken');
 	}
 
-	/**
-	 * Save token to localStorage and cookie
-	 */
 	public saveToken(token: string): void {
-		if (typeof globalThis.window === 'undefined') return;
+		if (globalThis.window === undefined) return;
 		localStorage.setItem('accessToken', token);
 
 		// Also save to cookie for middleware
 		document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Strict`;
 	}
 
-	/**
-	 * Save refresh token to localStorage
-	 */
-	public saveRefreshToken(token: string): void {
-		if (typeof globalThis.window === 'undefined') return;
-		localStorage.setItem('refreshToken', token);
-	}
-
-	/**
-	 * Remove tokens from localStorage and cookie
-	 */
 	public clearTokens(): void {
-		if (typeof globalThis.window === 'undefined') return;
+		if (globalThis.window === undefined) return;
 		localStorage.removeItem('accessToken');
 		localStorage.removeItem('refreshToken');
 
-		// Clear cookie
+		// Clear cookies
 		document.cookie = 'accessToken=; path=/; max-age=0';
+		document.cookie = 'refreshToken=; path=/; max-age=0';
 	}
 
-	/**
-	 * Make a request to the API
-	 */
+	private processQueue(error: Error | null, token: string | null = null): void {
+		for (const prom of this.failedQueue) {
+			if (error) {
+				prom.reject(error);
+			} else {
+				prom.resolve(token);
+			}
+		}
+
+		this.failedQueue.length = 0;
+	}
+
+	private async handleRefreshToken(): Promise<string> {
+		try {
+			// Refresh token is now sent via cookie, so no need to send in body
+			const response = await fetch(`${this.baseURL}/Auth/refresh-token`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				credentials: 'include', // Important: send cookies
+				body: JSON.stringify({}),
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to refresh token');
+			}
+
+			const result = await response.json();
+
+			if (result.isSuccess && result.data) {
+				this.saveToken(result.data.accessToken);
+
+				// Update user data if available
+				if (result.data.user && globalThis.window !== undefined) {
+					localStorage.setItem('user', JSON.stringify(result.data.user));
+				}
+
+				return result.data.accessToken;
+			}
+
+			throw new Error('Invalid refresh token response');
+		} catch (error) {
+			// Clear tokens and redirect to login
+			this.clearTokens();
+			if (globalThis.window !== undefined) {
+				localStorage.removeItem('user');
+				globalThis.window.location.href = '/auth/login?session=expired';
+			}
+			throw error;
+		}
+	}
+
 	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResult<T>> {
 		const url = `${this.baseURL}${endpoint}`;
+
+		// Check if token is expired before making request
+		const token = this.getToken();
+		if (token && this.isTokenExpired(token)) {
+			// Token is expired or about to expire, refresh it first
+			if (this.isRefreshing) {
+				// Wait for ongoing refresh
+				await new Promise((resolve, reject) => {
+					this.failedQueue.push({ resolve, reject });
+				});
+			} else {
+				// Start refresh process
+				this.isRefreshing = true;
+				try {
+					const newToken = await this.handleRefreshToken();
+					this.processQueue(null, newToken);
+				} catch (refreshError) {
+					this.processQueue(refreshError as Error, null);
+					throw refreshError;
+				} finally {
+					this.isRefreshing = false;
+				}
+			}
+		}
 
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -82,6 +172,7 @@ export class ApiClient {
 				...options,
 				headers,
 				signal: controller.signal,
+				credentials: 'include', // Always include cookies for refresh token
 			});
 
 			clearTimeout(timeoutId);
@@ -104,10 +195,9 @@ export class ApiClient {
 
 			if (error instanceof Error) {
 				if (error.name === 'AbortError') {
-					throw {
-						message: 'Request timeout',
-						statusCode: 408,
-					} as ApiError;
+					const timeoutError = new Error('Request timeout') as ApiError;
+					timeoutError.statusCode = 408;
+					throw timeoutError;
 				}
 			}
 
@@ -115,18 +205,12 @@ export class ApiClient {
 		}
 	}
 
-	/**
-	 * GET request
-	 */
 	public async get<T>(endpoint: string): Promise<ApiResult<T>> {
 		return this.request<T>(endpoint, {
 			method: 'GET',
 		});
 	}
 
-	/**
-	 * POST request
-	 */
 	public async post<T>(endpoint: string, body?: unknown): Promise<ApiResult<T>> {
 		return this.request<T>(endpoint, {
 			method: 'POST',
@@ -134,9 +218,6 @@ export class ApiClient {
 		});
 	}
 
-	/**
-	 * PUT request
-	 */
 	public async put<T>(endpoint: string, body?: unknown): Promise<ApiResult<T>> {
 		return this.request<T>(endpoint, {
 			method: 'PUT',
@@ -144,18 +225,12 @@ export class ApiClient {
 		});
 	}
 
-	/**
-	 * DELETE request
-	 */
 	public async delete<T>(endpoint: string): Promise<ApiResult<T>> {
 		return this.request<T>(endpoint, {
 			method: 'DELETE',
 		});
 	}
 
-	/**
-	 * PATCH request
-	 */
 	public async patch<T>(endpoint: string, body?: unknown): Promise<ApiResult<T>> {
 		return this.request<T>(endpoint, {
 			method: 'PATCH',

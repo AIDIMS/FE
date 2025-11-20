@@ -16,7 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { readonly children: React.ReactNode }) {
 	const [user, setUser] = useState<UserDto | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const router = useRouter();
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 					// Sync token to cookie for middleware
 					const token =
-						typeof globalThis.window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+						globalThis.window === undefined ? localStorage.getItem('accessToken') : null;
 					if (token) {
 						document.cookie = `accessToken=${token}; path=/; max-age=86400; SameSite=Strict`;
 					}
@@ -97,11 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			console.error('Logout error:', error);
 		} finally {
 			setUser(null);
-
-			// Clear cookie
 			document.cookie = 'accessToken=; path=/; max-age=0';
-
-			// Redirect to login
 			router.push('/auth/login');
 		}
 	};
@@ -111,14 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setUser(storedUser);
 	};
 
-	const value: AuthContextType = {
-		user,
-		isAuthenticated: !!user && authService.isAuthenticated(),
-		isLoading,
-		login,
-		logout,
-		refreshUser,
-	};
+	const value = React.useMemo<AuthContextType>(
+		() => ({
+			user,
+			isAuthenticated: !!user && authService.isAuthenticated(),
+			isLoading,
+			login,
+			logout,
+			refreshUser,
+		}),
+		[user, isLoading, login, logout, refreshUser]
+	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

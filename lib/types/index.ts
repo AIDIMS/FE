@@ -1,12 +1,7 @@
-/**
- * Types - Main export file
- */
-
 export type { ApiResult, PaginatedResult, ApiError } from './api';
 
 export type {
 	LoginDto,
-	RegisterDto,
 	AuthResponseDto,
 	UserDto,
 	RefreshTokenDto,

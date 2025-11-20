@@ -1,21 +1,6 @@
-/**
- * Authentication related types
- */
-
 export interface LoginDto {
 	username: string;
 	password: string;
-}
-
-export interface RegisterDto {
-	username: string;
-	password: string;
-	email: string;
-	firstName: string;
-	lastName: string;
-	phoneNumber?: string;
-	role: UserRole;
-	department: Department;
 }
 
 export interface AuthResponseDto {
@@ -54,14 +39,16 @@ export enum UserRole {
 	Doctor = 1,
 	Radiologist = 2,
 	Technician = 3,
-	Nurse = 4,
 }
 
 export enum Department {
 	Radiology = 0,
 	Cardiology = 1,
 	Neurology = 2,
-	Orthopedics = 3,
-	Emergency = 4,
-	Other = 5,
+	Oncology = 3,
+	Pediatrics = 4,
+	Emergency = 5,
+	Orthopedics = 6,
+	GeneralMedicine = 7,
+	PACS = 8,
 }

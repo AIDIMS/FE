@@ -1,81 +1,85 @@
-"use client"
+'use client';
 
-import React from "react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Bell, Search, User, Menu, ChevronRight, Check } from "lucide-react"
-import { SidebarTrigger } from "./sidebar"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Bell, User, ChevronRight, Check } from 'lucide-react';
+import { SidebarTrigger } from './sidebar';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/lib/contexts';
+import { getRoleName } from '@/lib/utils/role';
 
 interface NavbarProps {
-	onSidebarToggle: () => void
+	readonly onSidebarToggle: () => void;
 }
 
 const breadcrumbMap: Record<string, string> = {
-	"/dashboard": "Tổng quan",
-	"/patients": "Bệnh nhân",
-	"/visits": "Ca khám",
-	"/records": "Hồ sơ",
-	"/settings": "Cài đặt",
-}
+	'/dashboard': 'Tổng quan',
+	'/patients': 'Bệnh nhân',
+	'/visits': 'Ca khám',
+	'/records': 'Hồ sơ',
+	'/settings': 'Cài đặt',
+	'/profile': 'Hồ sơ cá nhân',
+};
 
 export function Navbar({ onSidebarToggle }: NavbarProps) {
-	const pathname = usePathname()
-	
+	const pathname = usePathname();
+
+	const { user } = useAuth();
+
 	// Build dynamic breadcrumbs
 	const getBreadcrumbs = () => {
-		const segments = pathname.split("/").filter(Boolean)
-		const breadcrumbs: Array<{ label: string; href: string }> = []
-		
+		const segments = pathname.split('/').filter(Boolean);
+		const breadcrumbs: Array<{ label: string; href: string }> = [];
+
 		// If at dashboard, only show DicomPro
-		if (pathname === "/dashboard" || pathname === "/") {
-			return [{ label: "DicomPro", href: "/dashboard" }]
+		if (pathname === '/dashboard' || pathname === '/') {
+			return [{ label: 'DicomPro', href: '/dashboard' }];
 		}
-		
+
 		// Always start with dashboard
-		breadcrumbs.push({ label: "DicomPro", href: "/dashboard" })
-		
-		if (segments.length === 0) return breadcrumbs
-		
+		breadcrumbs.push({ label: 'DicomPro', href: '/dashboard' });
+
+		if (segments.length === 0) return breadcrumbs;
+
 		// Build path incrementally
-		let currentPath = ""
+		let currentPath = '';
 		segments.forEach((segment, index) => {
-			currentPath += `/${segment}`
-			
+			currentPath += `/${segment}`;
+
 			// Skip if it's the same as dashboard (already added)
-			if (currentPath === "/dashboard") return
-			
+			if (currentPath === '/dashboard') return;
+
 			// Check if it's a known route
 			if (breadcrumbMap[currentPath]) {
 				breadcrumbs.push({
 					label: breadcrumbMap[currentPath],
 					href: currentPath,
-				})
-			} else if (currentPath.startsWith("/patients/") && segments.length > 1) {
+				});
+			} else if (currentPath.startsWith('/patients/') && segments.length > 1) {
 				// Dynamic route for patient detail
 				breadcrumbs.push({
-					label: "Chi tiết bệnh nhân",
+					label: 'Chi tiết bệnh nhân',
 					href: currentPath,
-				})
-			} else if (currentPath.startsWith("/visits/") && segments.length > 1) {
+				});
+			} else if (currentPath.startsWith('/visits/') && segments.length > 1) {
 				// Dynamic route for visit detail
 				breadcrumbs.push({
-					label: "Chi tiết ca khám",
+					label: 'Chi tiết ca khám',
 					href: currentPath,
-				})
-			} else if (currentPath.startsWith("/records/")) {
+				});
+			} else if (currentPath.startsWith('/records/')) {
 				breadcrumbs.push({
-					label: "Chi tiết hồ sơ",
+					label: 'Chi tiết hồ sơ',
 					href: currentPath,
-				})
+				});
 			}
-		})
-		
-		return breadcrumbs
-	}
-	
-	const breadcrumbs = getBreadcrumbs()
+		});
+
+		return breadcrumbs;
+	};
+
+	const breadcrumbs = getBreadcrumbs();
 
 	return (
 		<header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 md:px-6">
@@ -89,10 +93,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 						{index === breadcrumbs.length - 1 ? (
 							<span className="text-gray-900 font-medium">{crumb.label}</span>
 						) : (
-							<Link 
-								href={crumb.href} 
-								className="hover:text-gray-700 transition-colors"
-							>
+							<Link href={crumb.href} className="hover:text-gray-700 transition-colors">
 								{crumb.label}
 							</Link>
 						)}
@@ -103,7 +104,11 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 			{/* Right side actions */}
 			<div className="flex flex-1 items-center justify-end gap-4">
 				{/* Notifications */}
-				<Button variant="ghost" size="icon" className="relative text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+				<Button
+					variant="ghost"
+					size="icon"
+					className="relative text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+				>
 					<Bell className="h-5 w-5" />
 					<span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-red-500"></span>
 					<span className="sr-only">Thông báo</span>
@@ -111,26 +116,33 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 
 				{/* User menu */}
 				<div className="flex items-center gap-3">
-					<div className="hidden sm:flex items-center gap-2">
-						<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-							<User className="h-5 w-5 text-gray-600" />
+					<Link
+						href="/profile"
+						className="hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity"
+					>
+						<div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-sm font-bold shrink-0">
+							{user?.firstName?.charAt(0)}
+							{user?.lastName?.charAt(0)}
 						</div>
 						<div className="flex flex-col">
-							<span className="text-sm font-medium text-gray-900">Bác sĩ</span>
+							<span className="text-sm font-medium text-gray-900">
+								{user ? getRoleName(user.role) : ''}
+							</span>
 							<div className="flex items-center gap-1">
 								<Check className="h-3 w-3 text-blue-500" />
 								<span className="text-xs text-gray-500">Online</span>
 							</div>
 						</div>
-					</div>
-					<Button variant="ghost" size="icon" className="rounded-full sm:hidden">
-						<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-							<User className="h-5 w-5 text-gray-600" />
-						</div>
-					</Button>
+					</Link>
+					<Link href="/profile">
+						<Button variant="ghost" size="icon" className="rounded-full sm:hidden">
+							<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+								<User className="h-5 w-5 text-gray-600" />
+							</div>
+						</Button>
+					</Link>
 				</div>
 			</div>
 		</header>
-	)
+	);
 }
-

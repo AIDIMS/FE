@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Plus, Search, Pencil, Trash2, UserCheck, UserX } from 'lucide-react';
 import { userService } from '@/lib/api';
-import { UserListDto, UserRole, Department } from '@/lib/types';
+import { UserListDto, UserRole } from '@/lib/types';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserFormDialog } from '@/components/users/user-form-dialog';
 import { DeleteUserDialog } from '@/components/users/delete-user-dialog';
+import { getDepartmentName, getRoleName } from '@/lib/utils/role';
 
 export default function UsersPage() {
 	const { user: currentUser } = useAuth();
@@ -88,29 +89,6 @@ export default function UsersPage() {
 		);
 	});
 
-	const getRoleName = (role: UserRole): string => {
-		const roleNames = {
-			[UserRole.Admin]: 'Quản trị viên',
-			[UserRole.Doctor]: 'Bác sĩ',
-			[UserRole.Radiologist]: 'Chuyên viên X-quang',
-			[UserRole.Technician]: 'Kỹ thuật viên',
-			[UserRole.Nurse]: 'Y tá',
-		};
-		return roleNames[role] || 'Không xác định';
-	};
-
-	const getDepartmentName = (dept: Department): string => {
-		const deptNames = {
-			[Department.Radiology]: 'X-quang',
-			[Department.Cardiology]: 'Tim mạch',
-			[Department.Neurology]: 'Thần kinh',
-			[Department.Orthopedics]: 'Chấn thương chỉnh hình',
-			[Department.Emergency]: 'Cấp cứu',
-			[Department.Other]: 'Khác',
-		};
-		return deptNames[dept] || 'Không xác định';
-	};
-
 	if (!isAdmin) {
 		return (
 			<DashboardLayout>
@@ -177,95 +155,110 @@ export default function UsersPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{isLoading ? (
-							<div className="text-center py-12">
-								<div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-								<p className="mt-4 text-gray-600">Đang tải...</p>
-							</div>
-						) : filteredUsers.length === 0 ? (
-							<div className="text-center py-12 text-gray-500">
-								<Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-								<p>Không tìm thấy người dùng nào</p>
-							</div>
-						) : (
-							<div className="overflow-x-auto">
-								<table className="w-full">
-									<thead>
-										<tr className="border-b border-gray-200">
-											<th className="text-left py-3 px-4 font-semibold text-gray-900">
-												Người dùng
-											</th>
-											<th className="text-left py-3 px-4 font-semibold text-gray-900">Email</th>
-											<th className="text-left py-3 px-4 font-semibold text-gray-900">Vai trò</th>
-											<th className="text-left py-3 px-4 font-semibold text-gray-900">Phòng ban</th>
-											<th className="text-left py-3 px-4 font-semibold text-gray-900">
-												Trạng thái
-											</th>
-											<th className="text-right py-3 px-4 font-semibold text-gray-900">Thao tác</th>
-										</tr>
-									</thead>
-									<tbody>
-										{filteredUsers.map(user => (
-											<tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-												<td className="py-3 px-4">
-													<div>
-														<p className="font-medium text-gray-900">
-															{user.firstName} {user.lastName}
-														</p>
-														<p className="text-sm text-gray-500">@{user.username}</p>
-													</div>
-												</td>
-												<td className="py-3 px-4 text-gray-700">{user.email}</td>
-												<td className="py-3 px-4">
-													<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-														{getRoleName(user.role)}
-													</span>
-												</td>
-												<td className="py-3 px-4 text-gray-700">
-													{getDepartmentName(user.department)}
-												</td>
-												<td className="py-3 px-4">
-													{user.isActive ? (
-														<span className="inline-flex items-center gap-1 text-green-700">
-															<UserCheck className="h-4 w-4" />
-															<span className="text-sm">Hoạt động</span>
-														</span>
-													) : (
-														<span className="inline-flex items-center gap-1 text-red-700">
-															<UserX className="h-4 w-4" />
-															<span className="text-sm">Vô hiệu hóa</span>
-														</span>
-													)}
-												</td>
-												<td className="py-3 px-4">
-													<div className="flex items-center justify-end gap-2">
-														<Button
-															variant="ghost"
-															size="sm"
-															onClick={() => handleEditClick(user)}
-															className="gap-1"
-														>
-															<Pencil className="h-4 w-4" />
-															Sửa
-														</Button>
-														<Button
-															variant="ghost"
-															size="sm"
-															onClick={() => handleDeleteClick(user)}
-															className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-															disabled={user.id === currentUser?.id}
-														>
-															<Trash2 className="h-4 w-4" />
-															Xóa
-														</Button>
-													</div>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						)}
+						{(() => {
+							if (isLoading) {
+								return (
+									<div className="text-center py-12">
+										<div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+										<p className="mt-4 text-gray-600">Đang tải...</p>
+									</div>
+								);
+							} else if (filteredUsers.length === 0) {
+								return (
+									<div className="text-center py-12 text-gray-500">
+										<Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+										<p>Không tìm thấy người dùng nào</p>
+									</div>
+								);
+							} else {
+								return (
+									<div className="overflow-x-auto">
+										<table className="w-full">
+											<thead>
+												<tr className="border-b border-gray-200">
+													<th className="text-left py-3 px-4 font-semibold text-gray-900">
+														Người dùng
+													</th>
+													<th className="text-left py-3 px-4 font-semibold text-gray-900">Email</th>
+													<th className="text-left py-3 px-4 font-semibold text-gray-900">
+														Vai trò
+													</th>
+													<th className="text-left py-3 px-4 font-semibold text-gray-900">
+														Phòng ban
+													</th>
+													<th className="text-left py-3 px-4 font-semibold text-gray-900">
+														Trạng thái
+													</th>
+													<th className="text-right py-3 px-4 font-semibold text-gray-900">
+														Thao tác
+													</th>
+												</tr>
+											</thead>
+											<tbody>
+												{filteredUsers.map(user => (
+													<tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+														<td className="py-3 px-4">
+															<div>
+																<p className="font-medium text-gray-900">
+																	{user.firstName} {user.lastName}
+																</p>
+																<p className="text-sm text-gray-500">@{user.username}</p>
+															</div>
+														</td>
+														<td className="py-3 px-4 text-gray-700">{user.email}</td>
+														<td className="py-3 px-4">
+															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+																{getRoleName(user.role)}
+															</span>
+														</td>
+														<td className="py-3 px-4 text-gray-700">
+															{getDepartmentName(user.department)}
+														</td>
+														<td className="py-3 px-4">
+															{!user.isDeleted ? (
+																<span className="inline-flex items-center gap-1 text-green-700">
+																	<UserCheck className="h-4 w-4" />
+																	<span className="text-sm">Hoạt động</span>
+																</span>
+															) : (
+																<span className="inline-flex items-center gap-1 text-red-700">
+																	<UserX className="h-4 w-4" />
+																	<span className="text-sm">Vô hiệu hóa</span>
+																</span>
+															)}
+														</td>
+														<td className="py-3 px-4">
+															<div className="flex items-center justify-end gap-2">
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	onClick={() => handleEditClick(user)}
+																	className="gap-1"
+																	disabled={user.isDeleted}
+																>
+																	<Pencil className="h-4 w-4" />
+																	Sửa
+																</Button>
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	onClick={() => handleDeleteClick(user)}
+																	className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+																	disabled={user.id === currentUser?.id || user.isDeleted}
+																>
+																	<Trash2 className="h-4 w-4" />
+																	Xóa
+																</Button>
+															</div>
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								);
+							}
+						})()}
 
 						{/* Pagination */}
 						{totalPages > 1 && (

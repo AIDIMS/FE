@@ -1,10 +1,7 @@
-/**
- * User related types
- */
-
 import { UserRole, Department } from './auth';
 
 export interface CreateUserDto {
+	username: string;
 	email: string;
 	password: string;
 	firstName: string;
@@ -18,9 +15,15 @@ export interface UpdateUserDto {
 	firstName: string;
 	lastName: string;
 	phoneNumber?: string;
-	isActive: boolean;
-	role?: UserRole;
-	department?: Department;
+	role: UserRole;
+	department: Department;
+}
+
+export interface UpdateUserByIdentifyDto {
+	firstName: string;
+	lastName: string;
+	email: string;
+	phoneNumber?: string;
 }
 
 export interface UserListDto {
@@ -32,7 +35,7 @@ export interface UserListDto {
 	phoneNumber?: string;
 	role: UserRole;
 	department: Department;
-	isActive: boolean;
+	isDeleted: boolean;
 	createdAt: string;
 	updatedAt: string;
 }

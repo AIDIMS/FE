@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useId, useState } from 'react';
+import React, { useId, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,11 +20,20 @@ export function LoginForm() {
 	const [password, setPassword] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 	const [formError, setFormError] = useState('');
+	const [sessionExpired, setSessionExpired] = useState(false);
 
 	const [usernameError, setUsernameError] = useState('');
 	const [passwordError, setPasswordError] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
-	const [remember, setRemember] = useState(false);
+
+	useEffect(() => {
+		// Check if redirected due to session expiration
+		const session = searchParams.get('session');
+		if (session === 'expired') {
+			setSessionExpired(true);
+			setFormError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+		}
+	}, [searchParams]);
 
 	const validateUsername = (value: string) => {
 		if (!value) return 'Vui lòng nhập tên đăng nhập';
@@ -54,9 +63,6 @@ export function LoginForm() {
 			const success = await login(username, password);
 
 			if (success) {
-				console.log('Đăng nhập thành công');
-
-				// Get redirect URL from query params or default to dashboard
 				const redirectUrl = searchParams.get('redirect') || '/dashboard';
 				router.push(redirectUrl);
 			} else {
@@ -107,17 +113,9 @@ export function LoginForm() {
 
 			{/* Password */}
 			<div className="space-y-2">
-				<div className="flex items-center justify-between">
-					<Label htmlFor={passwordId} className="text-gray-900 font-medium">
-						Mật khẩu
-					</Label>
-					<a
-						href="/forgot-password"
-						className="text-sm text-black hover:text-blue-700 transition-colors"
-					>
-						Quên mật khẩu?
-					</a>
-				</div>
+				<Label htmlFor={passwordId} className="text-gray-900 font-medium">
+					Mật khẩu
+				</Label>
 
 				<div className="relative">
 					<Input
@@ -159,31 +157,36 @@ export function LoginForm() {
 				)}
 			</div>
 
-			{/* Remember me */}
-			<div className="flex items-center gap-3">
-				<input
-					id={`${id}-remember`}
-					type="checkbox"
-					checked={remember}
-					onChange={e => setRemember(e.target.checked)}
-					className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
-				/>
-				<Label htmlFor={`${id}-remember`} className="text-sm text-gray-900">
-					Ghi nhớ đăng nhập
-				</Label>
-			</div>
-
 			{/* Form-level error */}
 			{formError && (
 				<div
-					className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"
+					className={`p-3 border rounded-lg text-sm flex items-start gap-2 ${
+						sessionExpired
+							? 'bg-amber-50 border-amber-200 text-amber-800'
+							: 'bg-red-50 border-red-200 text-red-700'
+					}`}
 					role="alert"
 					aria-live="assertive"
 				>
-					{formError}
+					{sessionExpired && (
+						<svg
+							className="w-5 h-5 shrink-0 mt-0.5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+							aria-hidden="true"
+						>
+							<path
+								fillRule="evenodd"
+								d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+								clipRule="evenodd"
+							/>
+						</svg>
+					)}
+					<span>{formError}</span>
 				</div>
 			)}
 
+			{/* Button Confirm */}
 			<Button
 				type="submit"
 				disabled={isLoading}
@@ -191,7 +194,7 @@ export function LoginForm() {
 				className="w-full bg-black hover:bg-blue-900 text-white font-semibold py-2 h-auto rounded-full transition-colors duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
 			>
 				{isLoading ? (
-					<span className="flex items-center gap-2" role="status" aria-live="polite">
+					<span className="flex items-center gap-2" aria-live="polite">
 						<svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
 							<circle
 								className="opacity-25"
@@ -215,6 +218,7 @@ export function LoginForm() {
 				)}
 			</Button>
 
+			{/* Terms and Privacy */}
 			<div className="pt-4">
 				<p className="text-xs text-gray-500 text-center">
 					Khi đăng nhập, bạn đồng ý với{' '}
