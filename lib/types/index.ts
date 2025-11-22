@@ -10,4 +10,7 @@ export type {
 
 export type { CreateUserDto, UpdateUserDto, UserListDto } from './user';
 
+export type { Notification, NotificationDto } from './notification';
+export { NotificationType } from './notification';
+
 export { UserRole, Department } from './auth';

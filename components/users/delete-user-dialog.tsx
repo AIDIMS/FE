@@ -12,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 import { userService } from '@/lib/api';
-import { UserListDto } from '@/lib/types';
+import { NotificationType, UserListDto } from '@/lib/types';
+import { useNotification } from '@/lib/contexts';
 
 interface DeleteUserDialogProps {
 	open: boolean;
@@ -24,6 +25,7 @@ interface DeleteUserDialogProps {
 export function DeleteUserDialog({ open, onOpenChange, onSuccess, user }: DeleteUserDialogProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
+	const { addNotification } = useNotification();
 
 	const handleDelete = async () => {
 		if (!user) return;
@@ -36,19 +38,31 @@ export function DeleteUserDialog({ open, onOpenChange, onSuccess, user }: Delete
 
 			if (result.isSuccess) {
 				onSuccess();
+				handleShowSuccess('Thành công', 'Xóa người dùng thành công');
 			} else {
 				setError(result.message || 'Xóa người dùng thất bại');
+				handleShowError('Lỗi', result.message || 'Xóa người dùng thất bại');
 			}
 		} catch (err: unknown) {
 			console.error('Error:', err);
 			if (err && typeof err === 'object' && 'message' in err) {
 				setError(err.message as string);
+				handleShowError('Lỗi', err.message as string);
 			} else {
 				setError('Đã xảy ra lỗi. Vui lòng thử lại.');
+				handleShowError('Lỗi', 'Đã xảy ra lỗi. Vui lòng thử lại.');
 			}
 		} finally {
 			setIsLoading(false);
 		}
+	};
+
+	const handleShowError = (title: string, message: string) => {
+		addNotification(NotificationType.ERROR, title, message);
+	};
+
+	const handleShowSuccess = (title: string, message: string) => {
+		addNotification(NotificationType.SUCCESS, title, message);
 	};
 
 	if (!user) return null;

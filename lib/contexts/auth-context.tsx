@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
 		}
 	}, [pathname, isLoading, router]);
 
-	const login = async (username: string, password: string): Promise<boolean> => {
+	const login = React.useCallback(async (username: string, password: string): Promise<boolean> => {
 		try {
 			const result = await authService.login({ username, password });
 
@@ -88,9 +88,9 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
 			console.error('Login error:', error);
 			return false;
 		}
-	};
+	}, []);
 
-	const logout = async () => {
+	const logout = React.useCallback(async () => {
 		try {
 			await authService.logout();
 		} catch (error) {
@@ -100,12 +100,12 @@ export function AuthProvider({ children }: { readonly children: React.ReactNode 
 			document.cookie = 'accessToken=; path=/; max-age=0';
 			router.push('/auth/login');
 		}
-	};
+	}, [router]);
 
-	const refreshUser = () => {
+	const refreshUser = React.useCallback(() => {
 		const storedUser = authService.getCurrentUser();
 		setUser(storedUser);
-	};
+	}, []);
 
 	const value = React.useMemo<AuthContextType>(
 		() => ({

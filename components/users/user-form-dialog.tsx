@@ -20,7 +20,15 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { userService } from '@/lib/api';
-import { CreateUserDto, UpdateUserDto, UserListDto, UserRole, Department } from '@/lib/types';
+import {
+	CreateUserDto,
+	UpdateUserDto,
+	UserListDto,
+	UserRole,
+	Department,
+	NotificationType,
+} from '@/lib/types';
+import { useNotification } from '@/lib/contexts';
 
 interface UserFormDialogProps {
 	readonly open: boolean;
@@ -45,6 +53,8 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
+
+	const { addNotification } = useNotification();
 
 	useEffect(() => {
 		if (user) {
@@ -81,6 +91,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 		try {
 			if (isEdit && user) {
 				const updateData: UpdateUserDto = {
+					email: formData.email,
 					firstName: formData.firstName,
 					lastName: formData.lastName,
 					phoneNumber: formData.phoneNumber || undefined,
@@ -92,12 +103,13 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 
 				if (result.isSuccess) {
 					onSuccess();
+					handleShowSuccess('Thành công', 'Cập nhật người dùng thành công');
 				} else {
-					setError(result.message || 'Cập nhật người dùng thất bại');
+					handleShowError('Lỗi', result.message || 'Cập nhật người dùng thất bại');
 				}
 			} else {
 				if (!formData.password) {
-					setError('Vui lòng nhập mật khẩu');
+					handleShowError('Lỗi', 'Vui lòng nhập mật khẩu');
 					setIsLoading(false);
 					return;
 				}
@@ -116,21 +128,33 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 				const result = await userService.create(createData);
 
 				if (result.isSuccess) {
+					handleShowSuccess('Thành công', 'Tạo người dùng thành công');
 					onSuccess();
 				} else {
-					setError(result.message || 'Tạo người dùng thất bại');
+					handleShowError(
+						'Lỗi',
+						(result.message ?? '') + (result.errors ?? '') || 'Tạo người dùng thất bại'
+					);
 				}
 			}
-		} catch (err: unknown) {
+		} catch (err: { [key: string]: unknown } | unknown) {
 			console.error('Error:', err);
 			if (err && typeof err === 'object' && 'message' in err) {
-				setError(err.message as string);
+				handleShowError('Lỗi', (err as Error).message);
 			} else {
-				setError('Đã xảy ra lỗi. Vui lòng thử lại.');
+				handleShowError('Lỗi', 'Đã xảy ra lỗi. Vui lòng thử lại.');
 			}
 		} finally {
 			setIsLoading(false);
 		}
+	};
+
+	const handleShowError = (title: string, message: string) => {
+		addNotification(NotificationType.ERROR, title, message);
+	};
+
+	const handleShowSuccess = (title: string, message: string) => {
+		addNotification(NotificationType.SUCCESS, title, message);
 	};
 
 	return (
@@ -169,7 +193,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 								value={formData.email}
 								onChange={e => setFormData({ ...formData, email: e.target.value })}
 								required
-								disabled={isEdit}
+								// disabled={isEdit}
 								placeholder="user@example.com"
 							/>
 						</div>

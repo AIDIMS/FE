@@ -26,12 +26,15 @@ import { getRoleName, getDepartmentName } from '@/lib/utils/role';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { authService, userService } from '@/lib/api';
+import { useNotification } from '@/lib/contexts';
+import { NotificationType } from '@/lib/types';
 
 export function ProfileView() {
 	const { user } = useAuth();
 	const [isEditing, setIsEditing] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
+	const { addNotification } = useNotification();
 
 	const [formData, setFormData] = useState({
 		firstName: user?.firstName || '',
@@ -133,6 +136,18 @@ export function ProfileView() {
 		} else if (passwordData.newPassword.length < 6) {
 			newErrors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự';
 			isValid = false;
+		} else if (passwordData.newPassword === passwordData.currentPassword) {
+			newErrors.newPassword = 'Mật khẩu mới phải khác mật khẩu hiện tại';
+			isValid = false;
+		} else if (!/[A-Z]/.test(passwordData.newPassword)) {
+			newErrors.newPassword = 'Mật khẩu phải chứa ít nhất một chữ cái viết hoa';
+			isValid = false;
+		} else if (!/[a-z]/.test(passwordData.newPassword)) {
+			newErrors.newPassword = 'Mật khẩu phải chứa ít nhất một chữ cái viết thường';
+			isValid = false;
+		} else if (!/[0-9]/.test(passwordData.newPassword)) {
+			newErrors.newPassword = 'Mật khẩu phải chứa ít nhất một số';
+			isValid = false;
 		}
 
 		if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -151,8 +166,13 @@ export function ProfileView() {
 		try {
 			await userService.identifyAndUpdate(user?.id ?? '', formData);
 			setIsEditing(false);
-		} catch (error) {
-			console.error('Error saving profile:', error);
+			handleShowSuccess('Cập nhật thành công', 'Thông tin cá nhân của bạn đã được cập nhật.');
+		} catch (error: unknown) {
+			if (typeof error === 'object' && error !== null && 'message' in error) {
+				handleShowError('Lỗi khi lưu thông tin', (error as { message: string }).message);
+			} else {
+				handleShowError('Lỗi khi lưu thông tin', 'Đã xảy ra lỗi không xác định');
+			}
 		} finally {
 			setIsSaving(false);
 		}
@@ -170,11 +190,24 @@ export function ProfileView() {
 				newPassword: '',
 				confirmPassword: '',
 			});
-		} catch (error) {
-			console.error('Error changing password:', error);
+			handleShowSuccess('Đổi mật khẩu thành công', 'Mật khẩu của bạn đã được cập nhật.');
+		} catch (error: unknown) {
+			if (typeof error === 'object' && error !== null && 'message' in error) {
+				handleShowError('Lỗi khi đổi mật khẩu', (error as { message: string }).message);
+			} else {
+				handleShowError('Lỗi khi đổi mật khẩu', 'Đã xảy ra lỗi không xác định');
+			}
 		} finally {
 			setIsChangingPassword(false);
 		}
+	};
+
+	const handleShowError = (title: string, message: string) => {
+		addNotification(NotificationType.ERROR, title, message);
+	};
+
+	const handleShowSuccess = (title: string, message: string) => {
+		addNotification(NotificationType.SUCCESS, title, message);
 	};
 
 	if (!user) {
@@ -187,6 +220,15 @@ export function ProfileView() {
 
 	return (
 		<div className="container mx-auto py-6 px-4 max-w-5xl">
+			<Button
+				variant="ghost"
+				className="mb-4 px-2 flex items-center gap-2"
+				onClick={() => window.history.back()}
+			>
+				<span className="text-lg">&larr;</span>
+				<span>Quay lại</span>
+			</Button>
+
 			{/* Header */}
 			<div className="mb-6">
 				<h1 className="text-3xl font-bold text-foreground mb-2">Hồ Sơ Cá Nhân</h1>
@@ -392,9 +434,11 @@ export function ProfileView() {
 										Cập nhật lần cuối
 									</Label>
 									<p className="text-foreground font-medium">
-										{format(new Date(user.updatedAt), 'dd/MM/yyyy HH:mm', {
-											locale: vi,
-										})}
+										{user.updatedAt
+											? format(new Date(user.updatedAt), 'dd/MM/yyyy HH:mm', {
+													locale: vi,
+												})
+											: 'Chưa cập nhật'}
 									</p>
 								</div>
 							</div>
@@ -506,50 +550,6 @@ export function ProfileView() {
 											Đổi mật khẩu
 										</>
 									)}
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Bảo Mật Tài Khoản</CardTitle>
-							<CardDescription>Các tùy chọn bảo mật bổ sung cho tài khoản của bạn</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="flex items-center justify-between p-4 border rounded-lg">
-								<div>
-									<h4 className="font-medium">Xác thực hai yếu tố</h4>
-									<p className="text-sm text-muted-foreground">
-										Thêm một lớp bảo mật bổ sung cho tài khoản
-									</p>
-								</div>
-								<Button variant="outline" disabled>
-									Sắp có
-								</Button>
-							</div>
-
-							<div className="flex items-center justify-between p-4 border rounded-lg">
-								<div>
-									<h4 className="font-medium">Lịch sử đăng nhập</h4>
-									<p className="text-sm text-muted-foreground">
-										Xem các thiết bị đã đăng nhập gần đây
-									</p>
-								</div>
-								<Button variant="outline" disabled>
-									Sắp có
-								</Button>
-							</div>
-
-							<div className="flex items-center justify-between p-4 border rounded-lg">
-								<div>
-									<h4 className="font-medium">Phiên đăng nhập</h4>
-									<p className="text-sm text-muted-foreground">
-										Quản lý các phiên đăng nhập đang hoạt động
-									</p>
-								</div>
-								<Button variant="outline" disabled>
-									Sắp có
 								</Button>
 							</div>
 						</CardContent>

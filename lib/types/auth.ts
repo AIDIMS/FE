@@ -21,7 +21,7 @@ export interface UserDto {
 	department: Department;
 	isActive: boolean;
 	createdAt: string;
-	updatedAt: string;
+	updatedAt?: string;
 }
 
 export interface RefreshTokenDto {
