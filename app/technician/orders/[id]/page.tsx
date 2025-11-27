@@ -5,12 +5,18 @@ import { useRouter, useParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Camera, CheckCircle2 } from 'lucide-react';
 import { OrderHeader } from '@/components/technician/order-header';
 import { PatientInfoCard } from '@/components/technician/patient-info-card';
 import { OrderDetailsCard } from '@/components/technician/order-details-card';
 import { FileUploadZone } from '@/components/technician/file-upload-zone';
 import { UploadedFilesList, UploadedFile } from '@/components/technician/uploaded-files-list';
+import dynamic from 'next/dynamic';
+
+const DicomViewer = dynamic(() => import('@/components/technician/dicom-viewer'), {
+	ssr: false,
+	loading: () => <p>Loading Viewer...</p>,
+});
 
 interface ImagingOrder {
 	id: string;
@@ -41,16 +47,12 @@ export default function TechnicianOrderDetail() {
 	const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 	const [isDragging, setIsDragging] = useState(false);
 	const [isProcessing, setIsProcessing] = useState(false);
+	const [previewFile, setPreviewFile] = useState<File | null>(null);
 
-	useEffect(() => {
-		loadOrderDetail();
-	}, [orderId]);
-
-	const loadOrderDetail = async () => {
+	const loadOrderDetail = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			await new Promise(resolve => setTimeout(resolve, 500));
-
 			// Mock data
 			const mockOrder: ImagingOrder = {
 				id: orderId,
@@ -62,18 +64,15 @@ export default function TechnicianOrderDetail() {
 				patient_dob: '1979-03-15',
 				modality_requested: 'CT',
 				body_part_requested: 'Đầu',
-				reason_for_study:
-					'Nghi ngờ chấn thương sọ não sau tai nạn giao thông. Bệnh nhân có tiền sử ngã xe, đau đầu, chóng mặt.',
+				reason_for_study: 'Nghi ngờ chấn thương sọ não sau tai nạn giao thông.',
 				requesting_doctor: 'BS. Trần Thị B',
 				status: 'pending',
 				priority: 'urgent',
 				created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-				notes: 'Yêu cầu chụp có tiêm thuốc cản quang. Kiểm tra chức năng thận trước khi tiêm.',
+				notes: 'Yêu cầu chụp có tiêm thuốc cản quang.',
 			};
 
 			setOrder(mockOrder);
-
-			// Auto-update status to in_progress
 			if (mockOrder.status === 'pending') {
 				setTimeout(() => {
 					setOrder(prev => (prev ? { ...prev, status: 'in_progress' } : null));
@@ -84,8 +83,60 @@ export default function TechnicianOrderDetail() {
 		} finally {
 			setIsLoading(false);
 		}
+	}, [orderId]);
+
+	useEffect(() => {
+		loadOrderDetail();
+	}, [loadOrderDetail]);
+
+	// --- File Processing Logic ---
+	const simulateUpload = (fileId: string) => {
+		const interval = setInterval(() => {
+			setUploadedFiles(prev =>
+				prev.map(file => {
+					if (file.id === fileId) {
+						const newProgress = Math.min(file.progress + 10, 100);
+						if (newProgress === 100) {
+							clearInterval(interval);
+							return { ...file, progress: 100, status: 'completed' as const };
+						}
+						return { ...file, progress: newProgress };
+					}
+					return file;
+				})
+			);
+		}, 200);
 	};
 
+	const handleFiles = useCallback((files: File[]) => {
+		const validFiles = files.filter(
+			f =>
+				f.name.toLowerCase().endsWith('.dcm') ||
+				f.name.toLowerCase().endsWith('.dicom') ||
+				f.type === 'application/dicom'
+		);
+
+		if (validFiles.length < files.length) {
+			alert('Đã bỏ qua một số file không đúng định dạng DICOM');
+		}
+
+		const newFiles: UploadedFile[] = validFiles.map(file => ({
+			id: Math.random().toString(36).substring(7),
+			name: file.name,
+			size: file.size,
+			progress: 0,
+			status: 'uploading',
+			fileObject: file, // Lưu file gốc
+		}));
+
+		setUploadedFiles(prev => [...prev, ...newFiles]);
+
+		newFiles.forEach(file => {
+			simulateUpload(file.id);
+		});
+	}, []);
+
+	// --- Drag & Drop Handlers ---
 	const handleDragEnter = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -103,58 +154,26 @@ export default function TechnicianOrderDetail() {
 		e.stopPropagation();
 	}, []);
 
-	const handleDrop = useCallback((e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		setIsDragging(false);
-
-		const files = Array.from(e.dataTransfer.files);
-		handleFiles(files);
-	}, []);
-
-	const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-		if (e.target.files) {
-			const files = Array.from(e.target.files);
+	const handleDrop = useCallback(
+		(e: React.DragEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			setIsDragging(false);
+			const files = Array.from(e.dataTransfer.files);
 			handleFiles(files);
-		}
-	};
+		},
+		[handleFiles]
+	);
 
-	const handleFiles = (files: File[]) => {
-		const newFiles: UploadedFile[] = files.map(file => ({
-			id: Math.random().toString(36).substring(7),
-			name: file.name,
-			size: file.size,
-			progress: 0,
-			status: 'uploading',
-		}));
-
-		setUploadedFiles(prev => [...prev, ...newFiles]);
-
-		// Simulate upload progress
-		newFiles.forEach(file => {
-			simulateUpload(file.id);
-		});
-	};
-
-	const simulateUpload = (fileId: string) => {
-		const interval = setInterval(() => {
-			setUploadedFiles(prev =>
-				prev.map(file => {
-					if (file.id === fileId) {
-						const newProgress = Math.min(file.progress + 10, 100);
-						return {
-							...file,
-							progress: newProgress,
-							status: newProgress === 100 ? 'completed' : 'uploading',
-						};
-					}
-					return file;
-				})
-			);
-		}, 200);
-
-		setTimeout(() => clearInterval(interval), 2000);
-	};
+	const handleFileInput = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			if (e.target.files) {
+				const files = Array.from(e.target.files);
+				handleFiles(files);
+			}
+		},
+		[handleFiles]
+	);
 
 	const removeFile = (fileId: string) => {
 		setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
@@ -165,143 +184,118 @@ export default function TechnicianOrderDetail() {
 			alert('Vui lòng upload ít nhất 1 file DICOM');
 			return;
 		}
-
 		setIsProcessing(true);
-		try {
-			await new Promise(resolve => setTimeout(resolve, 1500));
-			// Update status to completed
+		// Simulate API call
+		setTimeout(() => {
 			alert('Hoàn thành chỉ định thành công!');
-			router.push('/technician/worklist');
-		} catch (error) {
-			console.error('Error completing order:', error);
-		} finally {
 			setIsProcessing(false);
-		}
+			router.push('/technician/worklist');
+		}, 1500);
 	};
 
-	if (isLoading) {
-		return (
-			<DashboardLayout>
-				<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 flex items-center justify-center">
-					<div className="flex items-center gap-3 text-slate-500">
-						<div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
-						<span>Đang tải thông tin...</span>
-					</div>
-				</div>
-			</DashboardLayout>
-		);
-	}
+	// --- Render ---
 
-	if (!order) {
-		return (
-			<DashboardLayout>
-				<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 flex items-center justify-center">
-					<div className="text-center">
-						<AlertCircle className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-						<p className="text-slate-600 text-lg">Không tìm thấy chỉ định</p>
-					</div>
-				</div>
-			</DashboardLayout>
-		);
-	}
+	if (isLoading) return <div className="p-8 text-center">Loading...</div>;
+	if (!order) return <div className="p-8 text-center text-red-500">Order not found</div>;
 
 	return (
-		<DashboardLayout>
-			<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
-				<div className="px-6 py-8">
-					<OrderHeader
-						orderId={order.id}
-						priority={order.priority}
-						modality={order.modality_requested}
-						status={order.status}
-					/>
+		<>
+			{previewFile && <DicomViewer file={previewFile} onClose={() => setPreviewFile(null)} />}
 
-					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-						{/* Left Column - Patient Info & Order Details */}
-						<div className="space-y-6">
-							<PatientInfoCard
-								patientName={order.patient_name}
-								patientCode={order.patient_code}
-								patientGender={order.patient_gender}
-								patientAge={order.patient_age}
-								patientDob={order.patient_dob}
-							/>
+			<DashboardLayout>
+				<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+					<div className="px-6 py-8">
+						<OrderHeader
+							orderId={order.id}
+							priority={order.priority}
+							modality={order.modality_requested}
+							status={order.status}
+						/>
 
-							<OrderDetailsCard
-								modalityRequested={order.modality_requested}
-								bodyPartRequested={order.body_part_requested}
-								requestingDoctor={order.requesting_doctor}
-								createdAt={order.created_at}
-								reasonForStudy={order.reason_for_study}
-								notes={order.notes}
-							/>
-						</div>
+						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+							{/* Cột trái: Thông tin */}
+							<div className="space-y-6">
+								<PatientInfoCard
+									patientName={order.patient_name}
+									patientCode={order.patient_code}
+									patientGender={order.patient_gender}
+									patientAge={order.patient_age}
+									patientDob={order.patient_dob}
+								/>
+								<OrderDetailsCard
+									modalityRequested={order.modality_requested}
+									bodyPartRequested={order.body_part_requested}
+									requestingDoctor={order.requesting_doctor}
+									createdAt={order.created_at}
+									reasonForStudy={order.reason_for_study}
+									notes={order.notes}
+								/>
+							</div>
 
-						{/* Right Column - Upload */}
-						<div className="lg:col-span-2">
-							<Card className="border border-slate-200 bg-white shadow-lg">
-								<CardHeader className="border-b border-slate-200 pb-4">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-2">
-											<Camera className="h-5 w-5 text-blue-600" />
-											<CardTitle className="text-base font-semibold text-slate-900">
-												Upload ảnh chụp
-											</CardTitle>
+							{/* Cột phải: Upload */}
+							<div className="lg:col-span-2">
+								<Card className="border border-slate-200 bg-white shadow-lg">
+									<CardHeader className="border-b border-slate-200 pb-4">
+										<div className="flex items-center justify-between">
+											<div className="flex items-center gap-2">
+												<Camera className="h-5 w-5 text-blue-600" />
+												<CardTitle className="text-base font-semibold text-slate-900">
+													Upload ảnh DICOM
+												</CardTitle>
+											</div>
+											<div className="text-sm text-slate-500">
+												{uploadedFiles.filter(f => f.status === 'completed').length} /{' '}
+												{uploadedFiles.length} files
+											</div>
 										</div>
-										<div className="text-sm text-slate-500">
-											{uploadedFiles.filter(f => f.status === 'completed').length} /{' '}
-											{uploadedFiles.length} files
+									</CardHeader>
+									<CardContent className="p-6">
+										<FileUploadZone
+											isDragging={isDragging}
+											onDragEnter={handleDragEnter}
+											onDragLeave={handleDragLeave}
+											onDragOver={handleDragOver}
+											onDrop={handleDrop}
+											onFileInput={handleFileInput}
+										/>
+
+										{/* Component danh sách file có nút Preview */}
+										<UploadedFilesList
+											files={uploadedFiles}
+											onRemoveFile={removeFile}
+											onPreviewFile={file => setPreviewFile(file)}
+										/>
+
+										{/* Nút Action */}
+										<div className="mt-8 flex items-center justify-end gap-3">
+											<Button onClick={() => router.push('/technician/worklist')} variant="outline">
+												Hủy
+											</Button>
+											<Button
+												onClick={handleComplete}
+												disabled={
+													uploadedFiles.filter(f => f.status === 'completed').length === 0 ||
+													isProcessing
+												}
+												className="bg-emerald-600 hover:bg-emerald-700 text-white"
+											>
+												{isProcessing ? (
+													'Đang xử lý...'
+												) : (
+													<>
+														<CheckCircle2 className="h-4 w-4 mr-2" />
+														Hoàn thành
+													</>
+												)}
+											</Button>
 										</div>
-									</div>
-								</CardHeader>
-								<CardContent className="p-6">
-									<FileUploadZone
-										isDragging={isDragging}
-										onDragEnter={handleDragEnter}
-										onDragLeave={handleDragLeave}
-										onDragOver={handleDragOver}
-										onDrop={handleDrop}
-										onFileInput={handleFileInput}
-									/>
-
-									<UploadedFilesList files={uploadedFiles} onRemoveFile={removeFile} />
-
-									{/* Action Buttons */}
-									<div className="mt-8 flex items-center justify-end gap-3">
-										<Button
-											onClick={() => router.push('/technician/worklist')}
-											variant="outline"
-											className="border-slate-300 text-slate-700 hover:bg-slate-50"
-										>
-											Hủy
-										</Button>
-										<Button
-											onClick={handleComplete}
-											disabled={
-												uploadedFiles.filter(f => f.status === 'completed').length === 0 ||
-												isProcessing
-											}
-											className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg px-8"
-										>
-											{isProcessing ? (
-												<>
-													<div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-													Đang xử lý...
-												</>
-											) : (
-												<>
-													<CheckCircle2 className="h-4 w-4 mr-2" />
-													Hoàn thành chỉ định
-												</>
-											)}
-										</Button>
-									</div>
-								</CardContent>
-							</Card>
+									</CardContent>
+								</Card>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-		</DashboardLayout>
+			</DashboardLayout>
+		</>
 	);
 }

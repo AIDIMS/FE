@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Additional ignores:
+    "node_modules/**",
+    "public/cornerstone-workers/**",
+    "package-lock.json",
+    "*.js",
+    "*.min.js",
+    "*.config.js",
+    "*.config.mjs",
   ]),
 ]);
 
