@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider, NotificationProvider } from '@/lib/contexts';
 import { NotificationContainer } from '@/components/ui/notification-container';
+import { Toaster } from 'sonner';
 
 const inter = Inter({
 	variable: '--font-inter',
@@ -27,6 +28,7 @@ export default function RootLayout({
 					<NotificationProvider>
 						{children}
 						<NotificationContainer />
+						<Toaster position="top-right" richColors closeButton />
 					</NotificationProvider>
 				</AuthProvider>
 			</body>

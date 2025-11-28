@@ -1,173 +1,209 @@
-"use client"
+'use client';
 
-import React, { useId, useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import React, { useId, useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
-import { Patient, Gender } from "@/lib/types/patient"
+} from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Patient, Gender, CreatePatientDto, UpdatePatientDto } from '@/lib/types/patient';
+import { patientService } from '@/lib/api/services/patient.service';
+import { toast } from '@/lib/utils/toast';
 
 interface PatientFormProps {
-	patient?: Patient | null
-	onSubmit: (data: Omit<Patient, "id" | "created_at" | "created_by" | "updated_at" | "updated_by" | "is_deleted" | "deleted_at" | "deleted_by">) => Promise<void>
-	onCancel: () => void
-	isLoading?: boolean
+	patient?: Patient | null;
+	onSubmit?: (patient: Patient) => void;
+	onCancel: () => void;
 }
 
-export function PatientForm({
-	patient,
-	onSubmit,
-	onCancel,
-	isLoading = false,
-}: PatientFormProps) {
-	const id = useId()
+export function PatientForm({ patient, onSubmit, onCancel }: PatientFormProps) {
+	const id = useId();
+	const [isLoading, setIsLoading] = useState(false);
 
 	const [formData, setFormData] = useState({
-		patient_code: patient?.patient_code || "",
-		full_name: patient?.full_name || "",
-		date_of_birth: patient?.date_of_birth || "",
-		gender: patient?.gender || "",
-		phone: patient?.phone || "",
-		address: patient?.address || "",
-	})
+		fullName: patient?.fullName || '',
+		gender: patient?.gender || '',
+		phoneNumber: patient?.phoneNumber || '',
+		address: patient?.address || '',
+	});
+	const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(
+		patient?.dateOfBirth ? new Date(patient.dateOfBirth) : undefined
+	);
 
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [errors, setErrors] = useState<Record<string, string>>({});
 
 	const validate = () => {
-		const newErrors: Record<string, string> = {}
+		const newErrors: Record<string, string> = {};
 
-		if (!formData.patient_code.trim()) {
-			newErrors.patient_code = "Mã bệnh nhân là bắt buộc"
+		if (!formData.fullName.trim()) {
+			newErrors.fullName = 'Họ và tên là bắt buộc';
 		}
 
-		if (!formData.full_name.trim()) {
-			newErrors.full_name = "Họ và tên là bắt buộc"
-		}
-
-		if (formData.date_of_birth) {
-			const dob = new Date(formData.date_of_birth)
-			const today = new Date()
-			if (dob > today) {
-				newErrors.date_of_birth = "Ngày sinh không thể lớn hơn ngày hiện tại"
+		if (dateOfBirth) {
+			const today = new Date();
+			if (dateOfBirth > today) {
+				newErrors.dateOfBirth = 'Ngày sinh không thể là ngày tương lai';
 			}
 		}
 
-		if (formData.phone && !/^[0-9]{10,15}$/.test(formData.phone)) {
-			newErrors.phone = "Số điện thoại không hợp lệ"
+		if (formData.phoneNumber && !/^[0-9]{10,15}$/.test(formData.phoneNumber)) {
+			newErrors.phoneNumber = 'Số điện thoại không hợp lệ';
 		}
 
-		setErrors(newErrors)
-		return Object.keys(newErrors).length === 0
-	}
+		setErrors(newErrors);
+		return Object.keys(newErrors).length === 0;
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
-		if (!validate()) return
+		e.preventDefault();
+		if (!validate()) return;
 
-		await onSubmit({
-			patient_code: formData.patient_code.trim(),
-			full_name: formData.full_name.trim(),
-			date_of_birth: formData.date_of_birth || null,
-			gender: (formData.gender as Gender) || null,
-			phone: formData.phone.trim() || null,
-			address: formData.address.trim() || null,
-		})
-	}
+		setIsLoading(true);
+
+		try {
+			const formatDateForBackend = (date: Date | undefined): string | null => {
+				if (!date) return null;
+				try {
+					const utcDate = new Date(
+						Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+					);
+					return utcDate.toISOString();
+				} catch {
+					return null;
+				}
+			};
+
+			if (patient) {
+				const updateData: UpdatePatientDto = {
+					fullName: formData.fullName.trim(),
+					dateOfBirth: formatDateForBackend(dateOfBirth),
+					gender: (formData.gender as Gender) || null,
+					phoneNumber: formData.phoneNumber.trim() || null,
+					address: formData.address.trim() || null,
+				};
+
+				const result = await patientService.update(patient.id, updateData);
+
+				if (result.isSuccess && result.data) {
+					toast.success('Cập nhật thông tin bệnh nhân thành công');
+					onSubmit?.(result.data);
+				} else {
+					toast.error(result.message || 'Cập nhật thông tin bệnh nhân thất bại');
+				}
+			} else {
+				// Create new patient
+				const createData: CreatePatientDto = {
+					fullName: formData.fullName.trim(),
+					dateOfBirth: formatDateForBackend(dateOfBirth),
+					gender: (formData.gender as Gender) || null,
+					phoneNumber: formData.phoneNumber.trim() || null,
+					address: formData.address.trim() || null,
+				};
+
+				const result = await patientService.create(createData);
+
+				if (result.isSuccess && result.data) {
+					toast.success('Thêm bệnh nhân mới thành công');
+					onSubmit?.(result.data);
+				} else {
+					toast.error(result.message || 'Thêm bệnh nhân mới thất bại');
+				}
+			}
+		} catch (error) {
+			console.error('Error submitting patient form:', error);
+			toast.error('Có lỗi xảy ra. Vui lòng thử lại sau.');
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	const handleChange = (field: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }))
+		setFormData(prev => ({ ...prev, [field]: value }));
 		if (errors[field]) {
-			setErrors((prev) => ({ ...prev, [field]: "" }))
+			setErrors(prev => ({ ...prev, [field]: '' }));
 		}
-	}
+	};
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-6" noValidate>
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-				{/* Mã bệnh nhân */}
-				<div className="space-y-2">
-					<Label htmlFor={`${id}-patient_code`} className="text-sm font-medium text-gray-700">
-						Mã bệnh nhân <span className="text-red-500">*</span>
-					</Label>
-					<Input
-						id={`${id}-patient_code`}
-						type="text"
-						placeholder="VD: BN001"
-						value={formData.patient_code}
-						onChange={(e) => handleChange("patient_code", e.target.value)}
-						onBlur={() => validate()}
-						aria-invalid={!!errors.patient_code}
-						required
-						disabled={!!patient} // Không cho sửa mã bệnh nhân khi edit
-						className={
-							errors.patient_code
-								? "border-red-500 focus:ring-red-500"
-								: ""
-						}
-					/>
-					{errors.patient_code && (
-						<p className="text-sm text-red-600" role="alert">
-							{errors.patient_code}
-						</p>
-					)}
-				</div>
-
 				{/* Họ và tên */}
 				<div className="space-y-2">
-					<Label htmlFor={`${id}-full_name`} className="text-sm font-medium text-gray-700">
+					<Label htmlFor={`${id}-fullName`} className="text-sm font-medium text-gray-700">
 						Họ và tên <span className="text-red-500">*</span>
 					</Label>
 					<Input
-						id={`${id}-full_name`}
+						id={`${id}-fullName`}
 						type="text"
 						placeholder="Nhập họ và tên"
-						value={formData.full_name}
-						onChange={(e) => handleChange("full_name", e.target.value)}
+						value={formData.fullName}
+						onChange={e => handleChange('fullName', e.target.value)}
 						onBlur={() => validate()}
-						aria-invalid={!!errors.full_name}
+						aria-invalid={!!errors.fullName}
 						required
-						className={
-							errors.full_name ? "border-red-500 focus:ring-red-500" : ""
-						}
+						className={errors.fullName ? 'border-red-500 focus:ring-red-500' : ''}
 					/>
-					{errors.full_name && (
+					{errors.fullName && (
 						<p className="text-sm text-red-600" role="alert">
-							{errors.full_name}
+							{errors.fullName}
 						</p>
 					)}
 				</div>
-
 				{/* Ngày sinh */}
 				<div className="space-y-2">
-					<Label htmlFor={`${id}-date_of_birth`} className="text-sm font-medium text-gray-700">
+					<Label htmlFor={`${id}-dateOfBirth`} className="text-sm font-medium text-gray-700">
 						Ngày sinh
 					</Label>
-					<Input
-						id={`${id}-date_of_birth`}
-						type="date"
-						value={formData.date_of_birth}
-						onChange={(e) => handleChange("date_of_birth", e.target.value)}
-						onBlur={() => validate()}
-						aria-invalid={!!errors.date_of_birth}
-						className={
-							errors.date_of_birth
-								? "border-red-500 focus:ring-red-500"
-								: ""
-						}
-					/>
-					{errors.date_of_birth && (
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								id={`${id}-dateOfBirth`}
+								variant={'outline'}
+								type="button"
+								className={cn(
+									'w-full justify-start text-left font-normal hover:bg-transparent',
+									!dateOfBirth && 'text-muted-foreground',
+									errors.dateOfBirth && 'border-red-500'
+								)}
+							>
+								<CalendarIcon className="mr-2 h-4 w-4" />
+								{dateOfBirth ? format(dateOfBirth, 'dd/MM/yyyy') : <span>Chọn ngày sinh</span>}
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-auto p-0" align="start">
+							<Calendar
+								mode="single"
+								selected={dateOfBirth}
+								onSelect={date => {
+									setDateOfBirth(date);
+									if (errors.dateOfBirth) {
+										setErrors(prev => ({ ...prev, dateOfBirth: '' }));
+									}
+								}}
+								initialFocus
+								disabled={date => date > new Date() || date < new Date('1900-01-01')}
+								captionLayout="dropdown"
+								fromYear={1900}
+								toYear={new Date().getFullYear()}
+							/>
+						</PopoverContent>
+					</Popover>
+					{errors.dateOfBirth && (
 						<p className="text-sm text-red-600" role="alert">
-							{errors.date_of_birth}
+							{errors.dateOfBirth}
 						</p>
 					)}
-				</div>
-
+				</div>{' '}
 				{/* Giới tính */}
 				<div className="space-y-2">
 					<Label htmlFor={`${id}-gender`} className="text-sm font-medium text-gray-700">
@@ -175,19 +211,18 @@ export function PatientForm({
 					</Label>
 					<Select
 						value={formData.gender}
-						onValueChange={(value: string) => handleChange("gender", value)}
+						onValueChange={(value: string) => handleChange('gender', value)}
 					>
 						<SelectTrigger id={`${id}-gender`}>
 							<SelectValue placeholder="Chọn giới tính" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="male">Nam</SelectItem>
-							<SelectItem value="female">Nữ</SelectItem>
-							<SelectItem value="other">Khác</SelectItem>
+							<SelectItem value="0">Nam</SelectItem>
+							<SelectItem value="1">Nữ</SelectItem>
+							<SelectItem value="2">Khác</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>
-
 				{/* Số điện thoại */}
 				<div className="space-y-2">
 					<Label htmlFor={`${id}-phone`} className="text-sm font-medium text-gray-700">
@@ -197,11 +232,11 @@ export function PatientForm({
 						id={`${id}-phone`}
 						type="tel"
 						placeholder="VD: 0901234567"
-						value={formData.phone}
-						onChange={(e) => handleChange("phone", e.target.value)}
+						value={formData.phoneNumber}
+						onChange={e => handleChange('phoneNumber', e.target.value)}
 						onBlur={() => validate()}
 						aria-invalid={!!errors.phone}
-						className={errors.phone ? "border-red-500 focus:ring-red-500" : ""}
+						className={errors.phone ? 'border-red-500 focus:ring-red-500' : ''}
 					/>
 					{errors.phone && (
 						<p className="text-sm text-red-600" role="alert">
@@ -221,7 +256,7 @@ export function PatientForm({
 					type="text"
 					placeholder="Nhập địa chỉ"
 					value={formData.address}
-					onChange={(e) => handleChange("address", e.target.value)}
+					onChange={e => handleChange('address', e.target.value)}
 				/>
 			</div>
 
@@ -243,11 +278,7 @@ export function PatientForm({
 				>
 					{isLoading ? (
 						<span className="flex items-center gap-2">
-							<svg
-								className="w-4 h-4 animate-spin"
-								viewBox="0 0 24 24"
-								aria-hidden="true"
-							>
+							<svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
 								<circle
 									className="opacity-25"
 									cx="12"
@@ -266,13 +297,12 @@ export function PatientForm({
 							Đang lưu...
 						</span>
 					) : patient ? (
-						"Cập nhật"
+						'Cập nhật'
 					) : (
-						"Thêm mới"
+						'Thêm mới'
 					)}
 				</Button>
 			</div>
 		</form>
-	)
+	);
 }
-

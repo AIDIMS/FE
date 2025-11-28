@@ -1,7 +1,7 @@
-"use client"
+'use client';
 
-import React from "react"
-import { useRouter } from "next/navigation"
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import {
 	Table,
 	TableBody,
@@ -9,26 +9,26 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 	DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { Patient } from "@/lib/types/patient"
-import { MoreVertical, ArrowDown, Eye, Pencil, Trash2 } from "lucide-react"
-import { formatDate, formatGender } from "@/lib/utils/date"
-import { PatientBadge } from "@/components/ui/patient-badge"
+} from '@/components/ui/dropdown-menu';
+import { Patient } from '@/lib/types/patient';
+import { MoreVertical, ArrowDown, Eye, Pencil, Trash2 } from 'lucide-react';
+import { formatDate, formatGender } from '@/lib/utils/date';
+import { PatientBadge } from '@/components/ui/patient-badge';
 
 interface PatientTableProps {
-	patients: Patient[]
-	onView: (patient: Patient) => void
-	onEdit: (patient: Patient) => void
-	onDelete: (patient: Patient) => void
-	isLoading?: boolean
+	patients: Patient[];
+	onView: (patient: Patient) => void;
+	onEdit: (patient: Patient) => void;
+	onDelete: (patient: Patient) => void;
+	isLoading?: boolean;
 }
 
 export function PatientTable({
@@ -38,22 +38,18 @@ export function PatientTable({
 	onDelete,
 	isLoading = false,
 }: PatientTableProps) {
-	const router = useRouter()
+	const router = useRouter();
 
 	const handleViewClick = (patient: Patient, e: React.MouseEvent) => {
-		e.stopPropagation()
-		router.push(`/patients/${patient.id}`)
-	}
+		e.stopPropagation();
+		router.push(`/patients/${patient.id}`);
+	};
 
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center py-12">
 				<div className="flex items-center gap-2 text-gray-500">
-					<svg
-						className="w-5 h-5 animate-spin"
-						viewBox="0 0 24 24"
-						aria-hidden="true"
-					>
+					<svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" aria-hidden="true">
 						<circle
 							className="opacity-25"
 							cx="12"
@@ -72,7 +68,7 @@ export function PatientTable({
 					Đang tải...
 				</div>
 			</div>
-		)
+		);
 	}
 
 	if (patients.length === 0) {
@@ -93,24 +89,22 @@ export function PatientTable({
 						/>
 					</svg>
 				</div>
-				<h3 className="text-lg font-semibold text-gray-900 mb-2">
-					Chưa có bệnh nhân nào
-				</h3>
+				<h3 className="text-lg font-semibold text-gray-900 mb-2">Chưa có bệnh nhân nào</h3>
 				<p className="text-sm text-gray-500 max-w-sm">
 					Bắt đầu bằng cách thêm bệnh nhân đầu tiên vào hệ thống
 				</p>
 			</div>
-		)
+		);
 	}
 
 	const getInitials = (name: string) => {
 		return name
-			.split(" ")
-			.map((n) => n[0])
-			.join("")
+			.split(' ')
+			.map(n => n[0])
+			.join('')
 			.toUpperCase()
-			.slice(0, 2)
-	}
+			.slice(0, 2);
+	};
 
 	return (
 		<div className="overflow-x-auto">
@@ -158,40 +152,36 @@ export function PatientTable({
 								<input
 									type="checkbox"
 									className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
-									onClick={(e) => e.stopPropagation()}
+									onClick={e => e.stopPropagation()}
 								/>
 							</TableCell>
 							<TableCell className="font-medium text-gray-900">
-								<span className="font-mono text-sm">{patient.patient_code}</span>
+								<span className="font-mono text-sm">{patient.patientCode}</span>
 							</TableCell>
 							<TableCell>
 								<div className="flex items-center gap-3">
 									<div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-md ring-2 ring-blue-100">
-										{getInitials(patient.full_name)}
+										{getInitials(patient.fullName)}
 									</div>
 									<div className="flex flex-col">
-										<span className="font-semibold text-gray-900">
-											{patient.full_name}
-										</span>
+										<span className="font-semibold text-gray-900">{patient.fullName}</span>
 										<span className="text-xs text-gray-500">
-											{patient.phone || "Chưa có SĐT"}
+											{patient.phoneNumber || 'Chưa có SĐT'}
 										</span>
 									</div>
 								</div>
 							</TableCell>
 							<TableCell className="text-sm text-gray-600">
-								{formatDate(patient.date_of_birth)}
+								{formatDate(patient.dateOfBirth)}
 							</TableCell>
 							<TableCell>
-								<PatientBadge variant="default">
-									{formatGender(patient.gender)}
-								</PatientBadge>
+								<PatientBadge variant="default">{formatGender(patient.gender)}</PatientBadge>
 							</TableCell>
 							<TableCell className="text-sm text-gray-600">
-								{formatDate(patient.created_at)}
+								{patient.lastVisitDate ? formatDate(patient.lastVisitDate) : 'Chưa có lần khám'}
 							</TableCell>
 							<TableCell className="text-sm text-gray-600">
-								{formatDate(patient.created_at)}
+								{formatDate(patient.createdAt)}
 							</TableCell>
 							<TableCell>
 								<DropdownMenu>
@@ -200,7 +190,7 @@ export function PatientTable({
 											variant="ghost"
 											size="icon"
 											className="h-8 w-8 text-gray-400 hover:text-gray-900 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-											onClick={(e) => e.stopPropagation()}
+											onClick={e => e.stopPropagation()}
 										>
 											<MoreVertical className="h-4 w-4" />
 											<span className="sr-only">Mở menu</span>
@@ -208,16 +198,16 @@ export function PatientTable({
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-48">
 										<DropdownMenuItem
-											onClick={(e) => handleViewClick(patient, e)}
+											onClick={e => handleViewClick(patient, e)}
 											className="cursor-pointer"
 										>
 											<Eye className="mr-2 h-4 w-4" />
 											Xem chi tiết
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={(e) => {
-												e.stopPropagation()
-												onEdit(patient)
+											onClick={e => {
+												e.stopPropagation();
+												onEdit(patient);
 											}}
 											className="cursor-pointer"
 										>
@@ -226,9 +216,9 @@ export function PatientTable({
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
-											onClick={(e) => {
-												e.stopPropagation()
-												onDelete(patient)
+											onClick={e => {
+												e.stopPropagation();
+												onDelete(patient);
 											}}
 											className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
 										>
@@ -243,6 +233,5 @@ export function PatientTable({
 				</TableBody>
 			</Table>
 		</div>
-	)
+	);
 }
-

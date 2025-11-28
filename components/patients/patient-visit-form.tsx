@@ -1,90 +1,119 @@
-"use client"
+'use client';
 
-import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
-import { PatientVisit } from "@/lib/types/patient"
-import { Loader2 } from "lucide-react"
+} from '@/components/ui/select';
+import { PatientVisit } from '@/lib/types/patient';
+import { Loader2 } from 'lucide-react';
+import { visitService } from '@/lib/api';
+import { userService } from '@/lib/api';
+import { UserListDto } from '@/lib/types/user';
+import { UserRole } from '@/lib/types/auth';
+import { useNotification } from '@/lib/contexts';
+import { NotificationType } from '@/lib/types/notification';
 
 interface PatientVisitFormProps {
-	patientId: string
-	visit?: PatientVisit | null
-	onSubmit: (data: Partial<PatientVisit>) => Promise<void>
-	onCancel: () => void
+	patientId: string;
+	visit?: PatientVisit | null;
+	onSubmit: (data: Partial<PatientVisit>) => Promise<void>;
+	onCancel: () => void;
 }
 
-export function PatientVisitForm({
-	patientId,
-	visit,
-	onSubmit,
-	onCancel,
-}: PatientVisitFormProps) {
-	const [isLoading, setIsLoading] = useState(false)
+export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: PatientVisitFormProps) {
+	const { addNotification } = useNotification();
+	const [isLoading, setIsLoading] = useState(false);
+	const [doctors, setDoctors] = useState<UserListDto[]>([]);
+	const [loadingDoctors, setLoadingDoctors] = useState(true);
 	const [formData, setFormData] = useState({
-		assigned_doctor_id: visit?.assigned_doctor_id || "",
-		symptoms: visit?.symptoms || "",
-		status: visit?.status || "waiting",
-	})
+		assigned_doctor_id: visit?.assignedDoctorId || '',
+		symptoms: visit?.symptoms || '',
+		status: visit?.status || 'waiting',
+	});
 
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [errors, setErrors] = useState<Record<string, string>>({});
 
-	// Mock data - sẽ được thay thế bằng API call để lấy danh sách bác sĩ
-	const mockDoctors = [
-		{ id: "doc1", name: "BS. Nguyễn Văn A" },
-		{ id: "doc2", name: "BS. Trần Thị B" },
-		{ id: "doc3", name: "BS. Lê Văn C" },
-	]
+	// Fetch doctors with role = 1 (Doctor)
+	useEffect(() => {
+		const fetchDoctors = async () => {
+			try {
+				setLoadingDoctors(true);
+				const result = await userService.getAll(1, 100);
+				if (result.isSuccess && result.data) {
+					const doctorsList = result.data.items.filter(user => user.role === UserRole.Doctor);
+					setDoctors(doctorsList);
+				} else {
+					addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+				}
+			} catch (error) {
+				console.error('Error fetching doctors:', error);
+				addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+			} finally {
+				setLoadingDoctors(false);
+			}
+		};
+
+		fetchDoctors();
+	}, []);
 
 	const validateForm = () => {
-		const newErrors: Record<string, string> = {}
+		const newErrors: Record<string, string> = {};
 
 		if (!formData.symptoms.trim()) {
-			newErrors.symptoms = "Vui lòng nhập triệu chứng"
+			newErrors.symptoms = 'Vui lòng nhập triệu chứng';
 		}
 
 		if (!formData.status) {
-			newErrors.status = "Vui lòng chọn trạng thái"
+			newErrors.status = 'Vui lòng chọn trạng thái';
 		}
 
-		setErrors(newErrors)
-		return Object.keys(newErrors).length === 0
-	}
+		setErrors(newErrors);
+		return Object.keys(newErrors).length === 0;
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+		e.preventDefault();
 
 		if (!validateForm()) {
-			return
+			return;
 		}
 
-		setIsLoading(true)
+		setIsLoading(true);
 		try {
-			await onSubmit({
-				...formData,
-				patient_id: patientId,
-			})
+			const result = await visitService.create({
+				patientId: patientId,
+				assignedDoctorId: formData.assigned_doctor_id || null,
+				symptoms: formData.symptoms || null,
+			});
+
+			if (result.isSuccess && result.data) {
+				addNotification(NotificationType.SUCCESS, 'Thành công', 'Tạo ca khám mới thành công');
+				await onSubmit(result.data);
+			} else {
+				addNotification(NotificationType.ERROR, 'Lỗi', result.message || 'Không thể tạo ca khám');
+			}
 		} catch (error) {
-			console.error("Error submitting visit:", error)
+			console.error('Error submitting visit:', error);
+			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tạo ca khám');
 		} finally {
-			setIsLoading(false)
+			setIsLoading(false);
 		}
-	}
+	};
 
 	const handleChange = (field: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }))
+		setFormData(prev => ({ ...prev, [field]: value }));
 		// Clear error when user starts typing
 		if (errors[field]) {
-			setErrors((prev) => ({ ...prev, [field]: "" }))
+			setErrors(prev => ({ ...prev, [field]: '' }));
 		}
-	}
+	};
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-6">
@@ -95,19 +124,20 @@ export function PatientVisitForm({
 					<span className="text-gray-400 ml-1 text-xs">(Tùy chọn)</span>
 				</Label>
 				<Select
-					value={formData.assigned_doctor_id || undefined}
-					onValueChange={(value) => handleChange("assigned_doctor_id", value)}
+					value={formData.assigned_doctor_id || ''}
+					onValueChange={value => handleChange('assigned_doctor_id', value)}
+					disabled={loadingDoctors}
 				>
 					<SelectTrigger
 						id="assigned_doctor_id"
 						className="w-full bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500"
 					>
-						<SelectValue placeholder="Chọn bác sĩ" />
+						<SelectValue placeholder={loadingDoctors ? 'Đang tải...' : 'Chọn bác sĩ'} />
 					</SelectTrigger>
 					<SelectContent>
-						{mockDoctors.map((doctor) => (
+						{doctors.map(doctor => (
 							<SelectItem key={doctor.id} value={doctor.id}>
-								{doctor.name}
+								{doctor.firstName} {doctor.lastName}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -125,16 +155,14 @@ export function PatientVisitForm({
 					rows={4}
 					placeholder="Mô tả triệu chứng của bệnh nhân..."
 					value={formData.symptoms}
-					onChange={(e) => handleChange("symptoms", e.target.value)}
+					onChange={e => handleChange('symptoms', e.target.value)}
 					className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors resize-none ${
 						errors.symptoms
-							? "border-red-300 focus:border-red-500 focus:ring-red-200"
-							: "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+							? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+							: 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
 					}`}
 				/>
-				{errors.symptoms && (
-					<p className="text-sm text-red-600 mt-1">{errors.symptoms}</p>
-				)}
+				{errors.symptoms && <p className="text-sm text-red-600 mt-1">{errors.symptoms}</p>}
 			</div>
 
 			{/* Status */}
@@ -143,16 +171,13 @@ export function PatientVisitForm({
 					Trạng thái
 					<span className="text-red-500 ml-1">*</span>
 				</Label>
-				<Select
-					value={formData.status}
-					onValueChange={(value) => handleChange("status", value)}
-				>
+				<Select value={formData.status} onValueChange={value => handleChange('status', value)}>
 					<SelectTrigger
 						id="status"
 						className={`w-full bg-white transition-colors ${
 							errors.status
-								? "border-red-300 focus:border-red-500 focus:ring-red-200"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
 						}`}
 					>
 						<SelectValue placeholder="Chọn trạng thái" />
@@ -184,9 +209,7 @@ export function PatientVisitForm({
 						</SelectItem>
 					</SelectContent>
 				</Select>
-				{errors.status && (
-					<p className="text-sm text-red-600 mt-1">{errors.status}</p>
-				)}
+				{errors.status && <p className="text-sm text-red-600 mt-1">{errors.status}</p>}
 			</div>
 
 			{/* Form Actions */}
@@ -211,10 +234,10 @@ export function PatientVisitForm({
 							Đang lưu...
 						</>
 					) : (
-						<>{visit ? "Cập nhật" : "Tạo ca khám"}</>
+						<>{visit ? 'Cập nhật' : 'Tạo ca khám'}</>
 					)}
 				</Button>
 			</div>
 		</form>
-	)
+	);
 }
