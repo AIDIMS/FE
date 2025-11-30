@@ -27,6 +27,12 @@ export const API_ENDPOINTS = {
 		BY_PATIENT: (patientId: string) => `/PatientVisits/patient/${patientId}`,
 		UPDATE_STATUS: (id: string) => `/PatientVisits/${id}/status`,
 	},
+	IMAGING_ORDERS: {
+		BASE: '/ImagingOrders',
+		BY_ID: (id: string) => `/ImagingOrders/${id}`,
+		BY_VISIT: (visitId: string) => `/ImagingOrders/visit/${visitId}`,
+		UPDATE_STATUS: (id: string) => `/ImagingOrders/${id}/status`,
+	},
 	DICOM: {
 		UPLOAD: '/Dicom/upload',
 		BY_ID: (id: string) => `/Dicom/${id}`,

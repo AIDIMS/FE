@@ -115,6 +115,7 @@ export default function PatientDetailPage() {
 			const newVisit: PatientVisit = {
 				id: Math.random().toString(36).substr(2, 9),
 				patientId: patientId,
+				patientCode: patient ? patient.patientCode : '',
 				patientName: patient ? patient.fullName : '',
 				assignedDoctorId: data.assignedDoctorId || null,
 				assignedDoctorName: data.assignedDoctorName || null,
@@ -337,7 +338,7 @@ export default function PatientDetailPage() {
 														}`}
 													>
 														{visit.status === 'Done'
-															? 'Chờ khám'
+															? 'Hoàn thành'
 															: visit.status === 'Inprogress'
 																? 'Đang xử lý'
 																: visit.status === 'Waiting'

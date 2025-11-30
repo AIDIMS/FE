@@ -26,31 +26,26 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import { imagingOrderService } from '@/lib/api';
+import { useNotification } from '@/lib/contexts';
+import { NotificationType } from '@/lib/types/notification';
+import { ImagingOrder as ImagingOrderType } from '@/lib/types/patient';
 
-interface ImagingOrder {
-	id: string;
-	visit_id: string;
-	patient_name: string;
-	patient_code: string;
-	patient_gender: 'male' | 'female' | 'other';
-	patient_age: number;
-	modality_requested: string;
-	body_part_requested: string;
-	reason_for_study: string | null;
-	requesting_doctor: string;
-	status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-	priority: 'normal' | 'urgent' | 'stat';
-	created_at: string;
+interface ImagingOrder extends ImagingOrderType {
+	patient_gender?: 'male' | 'female' | 'other';
+	patient_age?: number;
+	priority?: 'normal' | 'urgent' | 'stat';
 	scheduled_time?: string;
 }
 
 export default function TechnicianWorklist() {
 	const router = useRouter();
+	const { addNotification } = useNotification();
 	const [orders, setOrders] = useState<ImagingOrder[]>([]);
 	const [filteredOrders, setFilteredOrders] = useState<ImagingOrder[]>([]);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [modalityFilter, setModalityFilter] = useState<string>('all');
-	const [statusFilter, setStatusFilter] = useState<string>('pending');
+	const [statusFilter, setStatusFilter] = useState<string>('Pending');
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
@@ -64,90 +59,24 @@ export default function TechnicianWorklist() {
 	const loadOrders = async () => {
 		setIsLoading(true);
 		try {
-			// Mock data - sẽ thay thế bằng API call
-			await new Promise(resolve => setTimeout(resolve, 500));
+			const result = await imagingOrderService.getAll(1, 100);
 
-			const mockOrders: ImagingOrder[] = [
-				{
-					id: 'ord1',
-					visit_id: 'visit1',
-					patient_name: 'Nguyễn Văn A',
-					patient_code: 'BN001',
-					patient_gender: 'male',
-					patient_age: 45,
-					modality_requested: 'CT',
-					body_part_requested: 'Đầu',
-					reason_for_study: 'Nghi ngờ chấn thương sọ não sau tai nạn',
-					requesting_doctor: 'BS. Trần Thị B',
-					status: 'pending',
-					priority: 'urgent',
-					created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-				},
-				{
-					id: 'ord2',
-					visit_id: 'visit2',
-					patient_name: 'Trần Thị C',
-					patient_code: 'BN002',
-					patient_gender: 'female',
-					patient_age: 32,
-					modality_requested: 'X-Ray',
-					body_part_requested: 'Ngực',
-					reason_for_study: 'Kiểm tra phổi, ho kéo dài',
-					requesting_doctor: 'BS. Lê Văn D',
-					status: 'pending',
-					priority: 'normal',
-					created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-				},
-				{
-					id: 'ord3',
-					visit_id: 'visit3',
-					patient_name: 'Lê Minh E',
-					patient_code: 'BN003',
-					patient_gender: 'male',
-					patient_age: 28,
-					modality_requested: 'MRI',
-					body_part_requested: 'Cột sống',
-					reason_for_study: 'Đau lưng mãn tính',
-					requesting_doctor: 'BS. Phạm Thị F',
-					status: 'in_progress',
-					priority: 'normal',
-					created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-				},
-				{
-					id: 'ord4',
-					visit_id: 'visit4',
-					patient_name: 'Phạm Thị G',
-					patient_code: 'BN004',
-					patient_gender: 'female',
-					patient_age: 55,
-					modality_requested: 'CT',
-					body_part_requested: 'Bụng',
-					reason_for_study: 'Đau bụng, nghi ngờ viêm ruột thừa',
-					requesting_doctor: 'BS. Hoàng Văn H',
-					status: 'pending',
-					priority: 'stat',
-					created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-				},
-				{
-					id: 'ord5',
-					visit_id: 'visit5',
-					patient_name: 'Hoàng Văn I',
-					patient_code: 'BN005',
-					patient_gender: 'male',
-					patient_age: 67,
-					modality_requested: 'X-Ray',
-					body_part_requested: 'Cột sống',
-					reason_for_study: 'Kiểm tra xương',
-					requesting_doctor: 'BS. Trần Thị B',
-					status: 'completed',
-					priority: 'normal',
-					created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-				},
-			];
-
-			setOrders(mockOrders);
+			if (result.isSuccess && result.data?.items) {
+				const mappedOrders: ImagingOrder[] = result.data.items.map(order => ({
+					...order,
+					priority: 'normal' as const,
+				}));
+				setOrders(mappedOrders);
+			} else {
+				addNotification(
+					NotificationType.ERROR,
+					'Lỗi',
+					result.message || 'Không thể tải danh sách chỉ định'
+				);
+			}
 		} catch (error) {
 			console.error('Error loading orders:', error);
+			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách chỉ định');
 		} finally {
 			setIsLoading(false);
 		}
@@ -158,12 +87,14 @@ export default function TechnicianWorklist() {
 
 		// Filter by status
 		if (statusFilter !== 'all') {
-			filtered = filtered.filter(order => order.status === statusFilter);
+			filtered = filtered.filter(
+				order => order.status.toLowerCase() === statusFilter.toLowerCase()
+			);
 		}
 
 		// Filter by modality
 		if (modalityFilter !== 'all') {
-			filtered = filtered.filter(order => order.modality_requested === modalityFilter);
+			filtered = filtered.filter(order => order.modalityRequested === modalityFilter);
 		}
 
 		// Filter by search query
@@ -171,9 +102,8 @@ export default function TechnicianWorklist() {
 			const query = searchQuery.toLowerCase();
 			filtered = filtered.filter(
 				order =>
-					order.patient_name.toLowerCase().includes(query) ||
-					order.patient_code.toLowerCase().includes(query) ||
-					order.body_part_requested.toLowerCase().includes(query)
+					order.patientName.toLowerCase().includes(query) ||
+					order.bodyPartRequested.toLowerCase().includes(query)
 			);
 		}
 
@@ -181,11 +111,13 @@ export default function TechnicianWorklist() {
 		filtered.sort((a, b) => {
 			// Priority order: stat > urgent > normal
 			const priorityOrder = { stat: 0, urgent: 1, normal: 2 };
-			if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-				return priorityOrder[a.priority] - priorityOrder[b.priority];
+			const aPriority = a.priority || 'normal';
+			const bPriority = b.priority || 'normal';
+			if (priorityOrder[aPriority] !== priorityOrder[bPriority]) {
+				return priorityOrder[aPriority] - priorityOrder[bPriority];
 			}
 			// Then by time (oldest first)
-			return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+			return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 		});
 
 		setFilteredOrders(filtered);
@@ -201,6 +133,71 @@ export default function TechnicianWorklist() {
 		const hours = Math.floor(minutes / 60);
 		const remainingMinutes = minutes % 60;
 		return `${hours}h ${remainingMinutes}m`;
+	};
+
+	const getBodyPartLabel = (bodyPart: string) => {
+		const bodyPartMap: Record<string, string> = {
+			// Head & Neck
+			Head: 'Đầu',
+			Brain: 'Não',
+			Skull: 'Sọ',
+			Neck: 'Cổ',
+			Face: 'Mặt',
+			Jaw: 'Hàm',
+			Throat: 'Họng',
+
+			// Torso
+			Chest: 'Ngực',
+			Lung: 'Phổi',
+			Lungs: 'Phổi',
+			Heart: 'Tim',
+			Breast: 'Vú',
+			Ribs: 'Xương sườn',
+			Abdomen: 'Bụng',
+			Stomach: 'Dạ dày',
+			Liver: 'Gan',
+			Kidney: 'Thận',
+			Kidneys: 'Thận',
+			Spleen: 'Lá lách',
+			Pancreas: 'Tụy',
+			Gallbladder: 'Túi mật',
+			Intestine: 'Ruột',
+			Pelvis: 'Khung chậu',
+
+			// Spine
+			Spine: 'Cột sống',
+			CervicalSpine: 'Cột sống cổ',
+			'Cervical Spine': 'Cột sống cổ',
+			ThoracicSpine: 'Cột sống ngực',
+			'Thoracic Spine': 'Cột sống ngực',
+			LumbarSpine: 'Cột sống thắt lưng',
+			'Lumbar Spine': 'Cột sống thắt lưng',
+			Sacrum: 'Xương cùng',
+			Coccyx: 'Xương cụt',
+
+			// Extremities
+			Shoulder: 'Vai',
+			Arm: 'Cánh tay',
+			Elbow: 'Khuỷu tay',
+			Forearm: 'Cẳng tay',
+			Wrist: 'Cổ tay',
+			Hand: 'Bàn tay',
+			Finger: 'Ngón tay',
+			Hip: 'Hông',
+			Thigh: 'Đùi',
+			Leg: 'Chân',
+			Knee: 'Đầu gối',
+			Calf: 'Bắp chân',
+			Ankle: 'Mắt cá chân',
+			Foot: 'Bàn chân',
+			Toe: 'Ngón chân',
+
+			// Other
+			WholeBody: 'Toàn thân',
+			'Whole Body': 'Toàn thân',
+		};
+
+		return bodyPartMap[bodyPart] || bodyPart;
 	};
 
 	const getStatusIcon = (status: string) => {
@@ -219,13 +216,15 @@ export default function TechnicianWorklist() {
 	};
 
 	const getStatusLabel = (status: string) => {
-		const labels = {
+		const statusLower = status.toLowerCase();
+		const labels: Record<string, string> = {
 			pending: 'Chờ thực hiện',
 			in_progress: 'Đang thực hiện',
+			inprogress: 'Đang thực hiện',
 			completed: 'Hoàn thành',
 			cancelled: 'Đã hủy',
 		};
-		return labels[status as keyof typeof labels] || status;
+		return labels[statusLower] || status;
 	};
 
 	const getPriorityBadge = (priority: string) => {
@@ -248,9 +247,11 @@ export default function TechnicianWorklist() {
 	};
 
 	const stats = {
-		pending: orders.filter(o => o.status === 'pending').length,
-		in_progress: orders.filter(o => o.status === 'in_progress').length,
-		completed: orders.filter(o => o.status === 'completed').length,
+		pending: orders.filter(o => o.status.toLowerCase() === 'pending').length,
+		in_progress: orders.filter(
+			o => o.status.toLowerCase() === 'inprogress' || o.status.toLowerCase() === 'in_progress'
+		).length,
+		completed: orders.filter(o => o.status.toLowerCase() === 'completed').length,
 		total: orders.length,
 	};
 
@@ -346,9 +347,9 @@ export default function TechnicianWorklist() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">Tất cả</SelectItem>
-										<SelectItem value="CT">CT Scan</SelectItem>
+										<SelectItem value="CTScan">CT Scan</SelectItem>
 										<SelectItem value="MRI">MRI</SelectItem>
-										<SelectItem value="X-Ray">X-Ray</SelectItem>
+										<SelectItem value="XRay">X-Ray</SelectItem>
 										<SelectItem value="Ultrasound">Siêu âm</SelectItem>
 									</SelectContent>
 								</Select>
@@ -360,10 +361,10 @@ export default function TechnicianWorklist() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">Tất cả</SelectItem>
-										<SelectItem value="pending">Chờ</SelectItem>
-										<SelectItem value="in_progress">Đang làm</SelectItem>
-										<SelectItem value="completed">Xong</SelectItem>
-										<SelectItem value="cancelled">Đã hủy</SelectItem>
+										<SelectItem value="Pending">Chờ</SelectItem>
+										<SelectItem value="InProgress">Đang làm</SelectItem>
+										<SelectItem value="Completed">Xong</SelectItem>
+										<SelectItem value="Cancelled">Đã hủy</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -407,7 +408,7 @@ export default function TechnicianWorklist() {
 											<div className="flex items-start gap-4">
 												{/* Modality Icon */}
 												<div className="flex-shrink-0 h-12 w-12 rounded-lg bg-slate-900 text-white flex items-center justify-center">
-													<span className="text-xs font-bold">{order.modality_requested}</span>
+													<span className="text-xs font-bold">{order.modalityRequested}</span>
 												</div>
 
 												{/* Main Info */}
@@ -415,45 +416,44 @@ export default function TechnicianWorklist() {
 													<div className="flex items-start justify-between gap-2 mb-2">
 														<div className="flex items-center gap-2 flex-wrap">
 															<h3 className="text-sm font-semibold text-slate-900">
-																{order.patient_name}
+																{order.patientName}
 															</h3>
-															<span className="text-xs font-mono text-slate-500">
-																{order.patient_code}
-															</span>
-															<span className="text-xs text-slate-400">•</span>
-															<span className="text-xs text-slate-500">
-																{order.patient_gender === 'male' ? 'Nam' : 'Nữ'},{' '}
-																{order.patient_age}t
-															</span>
-															{getPriorityBadge(order.priority)}
+															{order.patient_gender && (
+																<>
+																	<span className="text-xs text-slate-400">•</span>
+																	<span className="text-xs text-slate-500">
+																		{order.patient_gender === 'male' ? 'Nam' : 'Nữ'}
+																		{order.patient_age && `, ${order.patient_age}t`}
+																	</span>
+																</>
+															)}
+															{order.priority && getPriorityBadge(order.priority)}
 														</div>
 														<div className="flex items-center gap-2 text-xs text-slate-500">
 															<Clock className="h-3.5 w-3.5" />
-															<span className="font-mono">{getWaitingTime(order.created_at)}</span>
+															<span className="font-mono">{getWaitingTime(order.createdAt)}</span>
 														</div>
 													</div>
-
 													<div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
 														<div>
 															<p className="text-slate-500 mb-0.5">Vùng chụp</p>
 															<p className="text-slate-900 font-medium">
-																{order.body_part_requested}
+																{getBodyPartLabel(order.bodyPartRequested)}
 															</p>
 														</div>
 														<div>
 															<p className="text-slate-500 mb-0.5">Bác sĩ chỉ định</p>
 															<p className="text-slate-900 font-medium">
-																{order.requesting_doctor}
+																{order.requestingDoctorName}
 															</p>
 														</div>
 														<div>
 															<p className="text-slate-500 mb-0.5">Lý do</p>
 															<p className="text-slate-700 line-clamp-1">
-																{order.reason_for_study || 'Không có'}
+																{order.reasonForStudy || 'Không có'}
 															</p>
 														</div>
-													</div>
-
+													</div>{' '}
 													<div className="mt-2 flex items-center gap-2">
 														<div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 rounded text-xs text-slate-700">
 															{getStatusIcon(order.status)}

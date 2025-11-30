@@ -3,42 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { PatientVisit, ImagingOrder } from '@/lib/types/patient';
-import { formatDate } from '@/lib/utils/date';
-import {
-	ArrowLeft,
-	Plus,
-	FileText,
-	Calendar,
-	User,
-	Stethoscope,
-	Camera,
-	Pencil,
-	Trash2,
-	MoreVertical,
-	History,
-	ClipboardList,
-	Save,
-} from 'lucide-react';
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-	DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import {
 	Dialog,
 	DialogContent,
@@ -47,13 +13,21 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog';
 import { ImagingOrderForm } from '@/components/patients/imaging-order-form';
+import { VisitHeader } from '@/components/visits/visit-header';
+import { PatientInfoCard } from '@/components/visits/patient-info-card';
+import { PreviousVisitsCard } from '@/components/visits/previous-visits-card';
+import { ExaminationNoteCard } from '@/components/visits/examination-note-card';
+import { ImagingOrdersCard } from '@/components/visits/imaging-orders-card';
+import { visitService } from '@/lib/api';
+import { useNotification } from '@/lib/contexts';
+import { NotificationType } from '@/lib/types/notification';
 
 interface VisitDetail extends PatientVisit {
-	patient_name: string;
-	patient_code: string;
-	patient_dob: string | null;
-	patient_gender: 'male' | 'female' | 'other' | null;
-	doctor_name?: string;
+	patientName: string;
+	patientCode: string;
+	patientDob: string | null;
+	patientGender: 'male' | 'female' | 'other' | null;
+	doctorName?: string;
 }
 
 interface PreviousVisit {
@@ -73,6 +47,7 @@ interface ExaminationNote {
 export default function VisitDetailPage() {
 	const params = useParams();
 	const router = useRouter();
+	const { addNotification } = useNotification();
 	const visitId = params.id as string;
 
 	const [visit, setVisit] = useState<VisitDetail | null>(null);
@@ -95,88 +70,72 @@ export default function VisitDetailPage() {
 	const loadVisitData = async () => {
 		setIsLoading(true);
 		try {
-			// Mock data - sẽ thay thế bằng API call
-			await new Promise(resolve => setTimeout(resolve, 500));
+			const result = await visitService.getById(visitId);
 
-			const mockVisit: VisitDetail = {
-				id: visitId,
-				patient_id: 'patient1',
-				patient_name: 'Nguyễn Văn A',
-				patient_code: 'BN001',
-				patient_dob: '1990-05-15',
-				patient_gender: 'male',
-				assigned_doctor_id: 'doc1',
-				doctor_name: 'BS. Trần Thị B',
-				symptoms: 'Đau đầu kéo dài, chóng mặt, buồn nôn',
-				status: 'in_progress',
-				created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-				created_by: null,
-				updated_at: null,
-				updated_by: null,
-				is_deleted: false,
-				deleted_at: null,
-				deleted_by: null,
-			};
+			if (result.isSuccess && result.data) {
+				const visitData = result.data;
 
-			const mockOrders: ImagingOrder[] = [
-				{
-					id: 'order1',
-					visit_id: visitId,
-					requesting_doctor_id: 'doc1',
-					modality_requested: 'CT',
-					body_part_requested: 'Đầu',
-					reason_for_study: 'Nghi ngờ chấn thương sọ não',
-					status: 'pending',
-					created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-					created_by: 'doc1',
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-				},
-				{
-					id: 'order2',
-					visit_id: visitId,
-					requesting_doctor_id: 'doc1',
-					modality_requested: 'X-Ray',
-					body_part_requested: 'Ngực',
-					reason_for_study: 'Kiểm tra phổi',
-					status: 'completed',
-					created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-					created_by: 'doc1',
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-				},
-			];
+				const mappedVisit: VisitDetail = {
+					id: visitData.id,
+					patientId: visitData.patientId,
+					patientName: visitData.patientName,
+					patientCode: visitData.patientCode,
+					patientDob: null,
+					patientGender: null,
+					assignedDoctorId: visitData.assignedDoctorId,
+					assignedDoctorName: visitData.assignedDoctorName,
+					doctorName: visitData.assignedDoctorName || undefined,
+					symptoms: visitData.symptoms,
+					status: visitData.status,
+					createdAt: visitData.createdAt,
+					createdBy: visitData.createdBy,
+					updatedAt: visitData.updatedAt,
+					updatedBy: visitData.updatedBy,
+					isDeleted: visitData.isDeleted,
+					deletedAt: visitData.deletedAt,
+					deletedBy: visitData.deletedBy,
+				};
+				setVisit(mappedVisit);
 
-			const mockPreviousVisits: PreviousVisit[] = [
-				{
-					id: 'prev1',
-					visit_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-					symptoms: 'Đau đầu nhẹ',
-					diagnosis: 'Căng thẳng thần kinh, thiếu ngủ',
-					status: 'completed',
-				},
-				{
-					id: 'prev2',
-					visit_date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-					symptoms: 'Chóng mặt',
-					diagnosis: 'Huyết áp thấp',
-					status: 'completed',
-				},
-			];
+				// Load previous visits for this patient with status = "Done"
+				await loadPreviousVisits(visitData.patientId);
 
-			setVisit(mockVisit);
-			setImagingOrders(mockOrders);
-			setPreviousVisits(mockPreviousVisits);
+				setImagingOrders([]);
+			} else {
+				addNotification(
+					NotificationType.ERROR,
+					'Lỗi',
+					result.message || 'Không thể tải thông tin ca khám'
+				);
+			}
 		} catch (error) {
 			console.error('Error loading visit data:', error);
+			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải thông tin ca khám');
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const loadPreviousVisits = async (patientId: string) => {
+		try {
+			const result = await visitService.getAll(1, 10);
+
+			if (result.isSuccess && result.data?.items) {
+				const doneVisits = result.data.items
+					.filter(v => v.patientId === patientId && v.status === 'Done' && v.id !== visitId)
+					.map(v => ({
+						id: v.id,
+						visit_date: v.createdAt,
+						symptoms: v.symptoms || '',
+						diagnosis: '',
+						status: v.status,
+					}))
+					.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
+
+				setPreviousVisits(doneVisits);
+			}
+		} catch (error) {
+			console.error('Error loading previous visits:', error);
 		}
 	};
 
@@ -197,7 +156,6 @@ export default function VisitDetailPage() {
 	};
 
 	const handleSubmitOrder = async (data: Partial<ImagingOrder>) => {
-		// Simulate API call
 		await new Promise(resolve => setTimeout(resolve, 800));
 
 		if (selectedOrder) {
@@ -211,19 +169,22 @@ export default function VisitDetailPage() {
 			// Create new order
 			const newOrder: ImagingOrder = {
 				id: Math.random().toString(36).substr(2, 9),
-				visit_id: visitId,
-				requesting_doctor_id: data.requesting_doctor_id || '',
-				modality_requested: data.modality_requested || '',
-				body_part_requested: data.body_part_requested || '',
-				reason_for_study: data.reason_for_study || null,
+				visitId: visitId,
+				patientId: visit?.patientId || '',
+				patientName: visit?.patientName || '',
+				requestingDoctorId: data.requestingDoctorId || '',
+				requestingDoctorName: visit?.doctorName || '',
+				modalityRequested: data.modalityRequested || '',
+				bodyPartRequested: data.bodyPartRequested || '',
+				reasonForStudy: data.reasonForStudy || null,
 				status: data.status || 'pending',
-				created_at: new Date().toISOString(),
-				created_by: data.requesting_doctor_id || null,
-				updated_at: null,
-				updated_by: null,
-				is_deleted: false,
-				deleted_at: null,
-				deleted_by: null,
+				createdAt: new Date().toISOString(),
+				createdBy: data.requestingDoctorId || null,
+				updatedAt: null,
+				updatedBy: null,
+				isDeleted: false,
+				deletedAt: null,
+				deletedBy: null,
 			};
 			setImagingOrders(prev => [newOrder, ...prev]);
 		}
@@ -310,329 +271,46 @@ export default function VisitDetailPage() {
 		<DashboardLayout>
 			<div className="w-full min-h-screen bg-slate-50">
 				<div className="px-6 py-8">
-					{/* Header - Clean Minimal */}
-					<div className="mb-8">
-						<Button
-							variant="ghost"
-							onClick={() => router.back()}
-							className="mb-6 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-						>
-							<ArrowLeft className="h-5 w-5 mr-2" />
-							Quay lại
-						</Button>
-
-						<div className="flex items-start justify-between mb-6">
-							<div>
-								<h1 className="text-3xl font-bold text-slate-900 mb-3">{visit.patient_name}</h1>
-								<div className="flex items-center gap-4 text-sm">
-									<div className="flex items-center gap-2">
-										<span className="text-slate-500">Mã BN:</span>
-										<span className="font-mono font-semibold text-slate-900">
-											{visit.patient_code}
-										</span>
-									</div>
-									<span className="text-slate-300">•</span>
-									<span className="text-slate-600">{formatDate(visit.created_at)}</span>
-									{visit.doctor_name && (
-										<>
-											<span className="text-slate-300">•</span>
-											<span className="text-slate-600">{visit.doctor_name}</span>
-										</>
-									)}
-								</div>
-							</div>
-							{getStatusBadge(visit.status)}
-						</div>
-					</div>
-
-					{/* 3-Column Layout - Minimal Design */}
+					<VisitHeader
+						patientName={visit.patientName}
+						patientCode={visit.patientCode}
+						visitDate={visit.createdAt}
+						doctorName={visit.doctorName}
+						status={visit.status}
+						onBack={() => router.back()}
+						getStatusBadge={getStatusBadge}
+					/>
 					<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 						{/* Left Column - Patient History */}
 						<div className="lg:col-span-3 space-y-4">
-							{/* Patient Info Card */}
-							<Card className="border border-slate-200 bg-white shadow-sm">
-								<CardHeader className="pb-3 border-b border-slate-100">
-									<div className="flex items-center gap-2">
-										<User className="h-4 w-4 text-slate-600" />
-										<CardTitle className="text-sm font-semibold text-slate-900">
-											Thông tin bệnh nhân
-										</CardTitle>
-									</div>
-								</CardHeader>
-								<CardContent className="p-4 space-y-3">
-									<div>
-										<p className="text-xs text-slate-500 mb-1">Họ và tên</p>
-										<p className="text-sm font-semibold text-slate-900">{visit.patient_name}</p>
-									</div>
-									<div>
-										<p className="text-xs text-slate-500 mb-1">Mã bệnh nhân</p>
-										<p className="text-sm font-mono text-slate-700">{visit.patient_code}</p>
-									</div>
-									{visit.patient_dob && (
-										<div>
-											<p className="text-xs text-slate-500 mb-1">Ngày sinh</p>
-											<p className="text-sm text-slate-700">{formatDate(visit.patient_dob)}</p>
-										</div>
-									)}
-									{visit.patient_gender && (
-										<div>
-											<p className="text-xs text-slate-500 mb-1">Giới tính</p>
-											<p className="text-sm text-slate-700">
-												{visit.patient_gender === 'male'
-													? 'Nam'
-													: visit.patient_gender === 'female'
-														? 'Nữ'
-														: 'Khác'}
-											</p>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
-							{/* Previous Visits */}
-							<Card className="border border-slate-200 bg-white shadow-sm">
-								<CardHeader className="pb-3 border-b border-slate-100">
-									<div className="flex items-center gap-2">
-										<History className="h-4 w-4 text-slate-600" />
-										<CardTitle className="text-sm font-semibold text-slate-900">
-											Lịch sử khám
-										</CardTitle>
-									</div>
-								</CardHeader>
-								<CardContent className="p-0">
-									{previousVisits.length === 0 ? (
-										<div className="p-8 text-center">
-											<History className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-											<p className="text-sm text-slate-500">Chưa có lịch sử</p>
-										</div>
-									) : (
-										<div className="divide-y divide-slate-100">
-											{previousVisits.map(pv => (
-												<div
-													key={pv.id}
-													className="p-4 hover:bg-slate-50 cursor-pointer transition-colors"
-												>
-													<div className="flex items-center gap-2 mb-2">
-														<Calendar className="h-3.5 w-3.5 text-slate-400" />
-														<p className="text-xs font-semibold text-slate-900">
-															{formatDate(pv.visit_date)}
-														</p>
-													</div>
-													<p className="text-xs text-slate-600 mb-1">{pv.symptoms}</p>
-													<p className="text-xs text-slate-900 font-medium">{pv.diagnosis}</p>
-												</div>
-											))}
-										</div>
-									)}
-								</CardContent>
-							</Card>
+							<PatientInfoCard
+								patientName={visit.patientName}
+								patientCode={visit.patientCode}
+								dateOfBirth={visit.patientDob}
+								gender={visit.patientGender}
+							/>{' '}
+							<PreviousVisitsCard previousVisits={previousVisits} />
 						</div>
 
 						{/* Center Column - Examination Notes */}
 						<div className="lg:col-span-5">
-							<Card className="border border-slate-200 bg-white shadow-sm">
-								<CardHeader className="pb-4 border-b border-slate-200">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-2">
-											<ClipboardList className="h-4 w-4 text-slate-600" />
-											<CardTitle className="text-sm font-semibold text-slate-900">
-												Phiếu khám bệnh
-											</CardTitle>
-										</div>
-										<Button
-											onClick={handleSaveExaminationNote}
-											disabled={isSavingNote}
-											size="sm"
-											className="bg-blue-600 hover:bg-blue-700 text-white"
-										>
-											<Save className="h-4 w-4 mr-2" />
-											{isSavingNote ? 'Đang lưu...' : 'Lưu'}
-										</Button>
-									</div>
-								</CardHeader>
-								<CardContent className="p-6 space-y-6">
-									{/* Current Symptoms */}
-									<div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-										<div className="flex items-start gap-2">
-											<FileText className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
-											<div className="flex-1">
-												<p className="text-xs font-semibold text-slate-700 mb-1">Lý do khám</p>
-												<p className="text-sm text-slate-900 leading-relaxed">{visit.symptoms}</p>
-											</div>
-										</div>
-									</div>
-
-									{/* Diagnosis */}
-									<div className="space-y-2">
-										<Label htmlFor="diagnosis" className="text-sm font-semibold text-slate-900">
-											Chẩn đoán <span className="text-slate-400">*</span>
-										</Label>
-										<textarea
-											id="diagnosis"
-											rows={4}
-											className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
-											placeholder="Nhập chẩn đoán bệnh..."
-											value={examinationNote.diagnosis}
-											onChange={e =>
-												setExaminationNote({ ...examinationNote, diagnosis: e.target.value })
-											}
-										/>
-									</div>
-
-									{/* Treatment Plan */}
-									<div className="space-y-2">
-										<Label htmlFor="treatment" className="text-sm font-semibold text-slate-900">
-											Phương pháp điều trị <span className="text-slate-400">*</span>
-										</Label>
-										<textarea
-											id="treatment"
-											rows={4}
-											className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
-											placeholder="Nhập phương pháp điều trị, đơn thuốc..."
-											value={examinationNote.treatment_plan}
-											onChange={e =>
-												setExaminationNote({ ...examinationNote, treatment_plan: e.target.value })
-											}
-										/>
-									</div>
-
-									{/* Additional Notes */}
-									<div className="space-y-2">
-										<Label htmlFor="notes" className="text-sm font-semibold text-slate-900">
-											Ghi chú thêm
-										</Label>
-										<textarea
-											id="notes"
-											rows={3}
-											className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
-											placeholder="Ghi chú bổ sung..."
-											value={examinationNote.notes}
-											onChange={e =>
-												setExaminationNote({ ...examinationNote, notes: e.target.value })
-											}
-										/>
-									</div>
-								</CardContent>
-							</Card>
+							<ExaminationNoteCard
+								symptoms={visit.symptoms || ''}
+								examinationNote={examinationNote}
+								isSavingNote={isSavingNote}
+								onNoteChange={setExaminationNote}
+								onSave={handleSaveExaminationNote}
+							/>
 						</div>
-
 						{/* Right Column - Imaging Orders */}
 						<div className="lg:col-span-4">
-							<Card className="border-2 border-blue-600 bg-white shadow-sm">
-								<CardHeader className="pb-4 border-b border-slate-200">
-									<div className="flex items-center gap-2">
-										<Camera className="h-4 w-4 text-blue-600" />
-										<CardTitle className="text-sm font-semibold text-slate-900">
-											Chỉ định chụp chiếu
-										</CardTitle>
-									</div>
-								</CardHeader>
-								<CardContent className="p-4">
-									{/* Add Order Button */}
-									<Button
-										onClick={handleAddOrder}
-										className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-4 h-11 font-semibold"
-									>
-										<Plus className="h-5 w-5 mr-2" />
-										Thêm Chỉ Định
-									</Button>
-
-									{/* Summary Stats - Minimal */}
-									<div className="grid grid-cols-3 gap-2 mb-4">
-										<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-											<p className="text-xl font-bold text-slate-900">{imagingOrders.length}</p>
-											<p className="text-xs text-slate-500 mt-1">Tổng</p>
-										</div>
-										<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-											<p className="text-xl font-bold text-slate-900">
-												{imagingOrders.filter(o => o.status === 'pending').length}
-											</p>
-											<p className="text-xs text-slate-500 mt-1">Chờ</p>
-										</div>
-										<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-											<p className="text-xl font-bold text-slate-900">
-												{imagingOrders.filter(o => o.status === 'completed').length}
-											</p>
-											<p className="text-xs text-slate-500 mt-1">Xong</p>
-										</div>
-									</div>
-
-									{/* Orders List */}
-									{imagingOrders.length === 0 ? (
-										<div className="text-center py-10 px-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-											<Camera className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-											<p className="text-sm text-slate-500">Chưa có chỉ định</p>
-										</div>
-									) : (
-										<div className="space-y-2">
-											{imagingOrders.map(order => (
-												<div
-													key={order.id}
-													className="bg-white rounded-lg p-4 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
-												>
-													<div className="flex items-start justify-between mb-3">
-														<div className="flex items-center gap-3 flex-1">
-															<div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-																<Camera className="h-4 w-4 text-slate-600" />
-															</div>
-															<div>
-																<p className="text-sm font-semibold text-slate-900">
-																	{order.modality_requested}
-																</p>
-																<p className="text-xs text-slate-600">
-																	{order.body_part_requested}
-																</p>
-															</div>
-														</div>
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	className="h-7 w-7 text-slate-400 hover:text-slate-900 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"
-																>
-																	<MoreVertical className="h-4 w-4" />
-																</Button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent align="end" className="w-36">
-																<DropdownMenuItem
-																	onClick={() => handleEditOrder(order)}
-																	className="cursor-pointer text-sm"
-																>
-																	<Pencil className="mr-2 h-3 w-3" />
-																	Sửa
-																</DropdownMenuItem>
-																<DropdownMenuSeparator />
-																<DropdownMenuItem
-																	onClick={() => handleDeleteOrder(order)}
-																	className="cursor-pointer text-sm text-red-600"
-																>
-																	<Trash2 className="mr-2 h-3 w-3" />
-																	Xóa
-																</DropdownMenuItem>
-															</DropdownMenuContent>
-														</DropdownMenu>
-													</div>
-													{order.reason_for_study && (
-														<p className="text-xs text-slate-600 mb-3 line-clamp-2 pl-12">
-															{order.reason_for_study}
-														</p>
-													)}
-													<div className="flex items-center justify-between pl-12">
-														{getStatusBadge(order.status)}
-														<p className="text-xs text-slate-400">
-															{new Date(order.created_at).toLocaleTimeString('vi-VN', {
-																hour: '2-digit',
-																minute: '2-digit',
-															})}
-														</p>
-													</div>
-												</div>
-											))}
-										</div>
-									)}
-								</CardContent>
-							</Card>
+							<ImagingOrdersCard
+								imagingOrders={imagingOrders}
+								onAddOrder={handleAddOrder}
+								onEditOrder={handleEditOrder}
+								onDeleteOrder={handleDeleteOrder}
+								getStatusBadge={getStatusBadge}
+							/>
 						</div>
 					</div>
 

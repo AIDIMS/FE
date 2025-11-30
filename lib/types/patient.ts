@@ -37,6 +37,7 @@ export interface UpdatePatientDto {
 export interface PatientVisit {
 	id: string;
 	patientId: string;
+	patientCode: string;
 	patientName: string;
 	assignedDoctorId: string | null;
 	assignedDoctorName: string | null;
@@ -54,7 +55,10 @@ export interface PatientVisit {
 export interface ImagingOrder {
 	id: string;
 	visitId: string;
+	patientId: string;
+	patientName: string;
 	requestingDoctorId: string;
+	requestingDoctorName: string;
 	modalityRequested: string;
 	bodyPartRequested: string;
 	reasonForStudy: string | null;
