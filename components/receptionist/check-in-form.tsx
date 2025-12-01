@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
 	Select,
@@ -20,16 +19,16 @@ interface CheckInFormProps {
 }
 
 export interface CheckInFormData {
-	patient_id: string;
-	assigned_doctor_id?: string;
+	patientId: string;
+	assignedDoctorId?: string;
 	symptoms: string;
 	status: 'waiting' | 'in_progress' | 'completed' | 'cancelled';
 }
 
 export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInFormProps) {
 	const [formData, setFormData] = useState<CheckInFormData>({
-		patient_id: patient.id,
-		assigned_doctor_id: undefined,
+		patientId: patient.id,
+		assignedDoctorId: undefined,
 		symptoms: '',
 		status: 'waiting',
 	});
@@ -81,15 +80,15 @@ export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInForm
 			<div className="bg-slate-50 rounded-lg p-4 space-y-2">
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-slate-600">Mã bệnh nhân:</span>
-					<span className="font-semibold text-slate-900">{patient.patient_code}</span>
+					<span className="font-semibold text-slate-900">{patient.patientCode}</span>
 				</div>
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-slate-600">Họ và tên:</span>
-					<span className="font-semibold text-slate-900">{patient.full_name}</span>
+					<span className="font-semibold text-slate-900">{patient.fullName}</span>
 				</div>
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-slate-600">Số điện thoại:</span>
-					<span className="font-semibold text-slate-900">{patient.phone}</span>
+					<span className="font-semibold text-slate-900">{patient.phoneNumber}</span>
 				</div>
 			</div>
 
@@ -99,8 +98,8 @@ export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInForm
 					Chọn bác sĩ <span className="text-slate-400 text-xs">(Tùy chọn)</span>
 				</Label>
 				<Select
-					value={formData.assigned_doctor_id || undefined}
-					onValueChange={value => setFormData({ ...formData, assigned_doctor_id: value })}
+					value={formData.assignedDoctorId || undefined}
+					onValueChange={value => setFormData({ ...formData, assignedDoctorId: value })}
 				>
 					<SelectTrigger id="doctor">
 						<SelectValue placeholder="Chọn bác sĩ hoặc để trống..." />

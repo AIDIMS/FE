@@ -4,19 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, AlertCircle, FileText, User, Calendar } from 'lucide-react';
+import { Clock, Users, FileText } from 'lucide-react';
 import { PatientVisit } from '@/lib/types/patient';
-import { formatDate } from '@/lib/utils/date';
 
 interface QueuePatient extends PatientVisit {
-	patient_name: string;
-	patient_code: string;
-	patient_gender: 'male' | 'female' | 'other' | null;
-	patient_dob: string | null;
-	patient_phone: string | null;
-	waiting_time_minutes: number;
+	patientGender: 'male' | 'female' | 'other' | null;
+	patientDob: string | null;
+	patientPhone: string | null;
+	waitingTimeMinutes: number;
 }
 
 export default function DoctorQueueDashboard() {
@@ -52,83 +48,87 @@ export default function DoctorQueueDashboard() {
 			const mockQueue: QueuePatient[] = [
 				{
 					id: 'visit1',
-					patient_id: 'p1',
-					patient_name: 'Nguyễn Văn A',
-					patient_code: 'BN001',
-					patient_gender: 'male',
-					patient_dob: '1990-05-15',
-					patient_phone: '0901234567',
-					assigned_doctor_id: 'doc1',
+					patientId: 'p1',
+					patientCode: 'BN001',
+					patientName: 'Nguyễn Văn A',
+					patientGender: 'male',
+					patientDob: '1990-05-15',
+					patientPhone: '0901234567',
+					assignedDoctorId: 'doc1',
+					assignedDoctorName: null,
 					symptoms: 'Đau đầu kéo dài 3 ngày, chóng mặt, buồn nôn. Tiền sử huyết áp cao.',
 					status: 'waiting',
-					created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 phút trước
-					created_by: null,
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-					waiting_time_minutes: 45,
+					createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 phút trước
+					createdBy: null,
+					updatedAt: null,
+					updatedBy: null,
+					isDeleted: false,
+					deletedAt: null,
+					deletedBy: null,
+					waitingTimeMinutes: 45,
 				},
 				{
 					id: 'visit2',
-					patient_id: 'p2',
-					patient_name: 'Trần Thị B',
-					patient_code: 'BN002',
-					patient_gender: 'female',
-					patient_dob: '1985-12-20',
-					patient_phone: '0909876543',
-					assigned_doctor_id: 'doc1',
+					patientId: 'p2',
+					patientCode: 'BN002',
+					patientName: 'Trần Thị B',
+					patientGender: 'female',
+					patientDob: '1985-12-20',
+					patientPhone: '0909876543',
+					assignedDoctorId: 'doc1',
+					assignedDoctorName: null,
 					symptoms: 'Ho khan, đau ngực, sốt nhẹ. Kéo dài 5 ngày.',
 					status: 'waiting',
-					created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 phút trước
-					created_by: null,
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-					waiting_time_minutes: 30,
+					createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 phút trước
+					createdBy: null,
+					updatedAt: null,
+					updatedBy: null,
+					isDeleted: false,
+					deletedAt: null,
+					deletedBy: null,
+					waitingTimeMinutes: 30,
 				},
 				{
 					id: 'visit3',
-					patient_id: 'p3',
-					patient_name: 'Lê Văn C',
-					patient_code: 'BN003',
-					patient_gender: 'male',
-					patient_dob: '1978-03-10',
-					patient_phone: '0912345678',
-					assigned_doctor_id: 'doc1',
+					patientId: 'p3',
+					patientCode: 'BN003',
+					patientName: 'Lê Văn C',
+					patientGender: 'male',
+					patientDob: '1978-03-10',
+					patientPhone: '0912345678',
+					assignedDoctorId: 'doc1',
+					assignedDoctorName: null,
 					symptoms: 'Đau bụng dưới bên phải, buồn nôn. Có tiền sử viêm ruột thừa.',
 					status: 'waiting',
-					created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 phút trước
-					created_by: null,
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-					waiting_time_minutes: 15,
+					createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 phút trước
+					createdBy: null,
+					updatedAt: null,
+					updatedBy: null,
+					isDeleted: false,
+					deletedAt: null,
+					deletedBy: null,
+					waitingTimeMinutes: 15,
 				},
 				{
 					id: 'visit4',
-					patient_id: 'p4',
-					patient_name: 'Phạm Thị D',
-					patient_code: 'BN004',
-					patient_gender: 'female',
-					patient_dob: '1992-08-25',
-					patient_phone: '0918765432',
-					assigned_doctor_id: 'doc1',
+					patientId: 'p4',
+					patientCode: 'BN004',
+					patientName: 'Phạm Thị D',
+					patientGender: 'female',
+					patientDob: '1992-08-25',
+					patientPhone: '0918765432',
+					assignedDoctorId: 'doc1',
+					assignedDoctorName: null,
 					symptoms: 'Đau khớp gối, sưng tấy. Khó di chuyển.',
 					status: 'waiting',
-					created_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8 phút trước
-					created_by: null,
-					updated_at: null,
-					updated_by: null,
-					is_deleted: false,
-					deleted_at: null,
-					deleted_by: null,
-					waiting_time_minutes: 8,
+					createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8 phút trước
+					createdBy: null,
+					updatedAt: null,
+					updatedBy: null,
+					isDeleted: false,
+					deletedAt: null,
+					deletedBy: null,
+					waitingTimeMinutes: 8,
 				},
 			];
 
@@ -145,18 +145,6 @@ export default function DoctorQueueDashboard() {
 		if (minutes < 60) return `${minutes} phút`;
 		const hours = Math.floor(minutes / 60);
 		return `${hours} giờ ${minutes % 60} phút`;
-	};
-
-	const getWaitingColor = (minutes: number) => {
-		if (minutes < 15) return 'text-green-600';
-		if (minutes < 30) return 'text-yellow-600';
-		return 'text-red-600';
-	};
-
-	const getWaitingBgColor = (minutes: number) => {
-		if (minutes < 15) return 'bg-green-50 border-green-200';
-		if (minutes < 30) return 'bg-yellow-50 border-yellow-200';
-		return 'bg-red-50 border-red-200';
 	};
 
 	const handlePatientClick = (visitId: string) => {
@@ -227,7 +215,7 @@ export default function DoctorQueueDashboard() {
 										<div>
 											<p className="text-amber-100 text-sm font-medium mb-1">Chờ lâu nhất</p>
 											<p className="text-3xl font-bold">
-												{queue.length > 0 ? getWaitingTime(queue[0].created_at) : '0 phút'}
+												{queue.length > 0 ? getWaitingTime(queue[0].createdAt) : '0 phút'}
 											</p>
 											<p className="text-amber-100 text-xs mt-2">thời gian chờ</p>
 										</div>
@@ -289,11 +277,10 @@ export default function DoctorQueueDashboard() {
 							) : (
 								<div className="space-y-px bg-slate-100">
 									{queue.map((patient, index) => {
-										const age = calculateAge(patient.patient_dob);
+										const age = calculateAge(patient.patientDob);
 										const waitingMinutes = Math.floor(
-											(Date.now() - new Date(patient.created_at).getTime()) / 60000
+											(Date.now() - new Date(patient.createdAt).getTime()) / 60000
 										);
-
 										return (
 											<div
 												key={patient.id}
@@ -326,28 +313,25 @@ export default function DoctorQueueDashboard() {
 														{/* Name & Code */}
 														<div>
 															<h3 className="text-base font-semibold text-slate-900 mb-1 tracking-tight">
-																{patient.patient_name}
+																{patient.patientName}
 															</h3>
 															<p className="text-xs text-slate-500 font-mono tracking-wider">
-																{patient.patient_code}
+																{patient.patientCode}
 															</p>
 														</div>
-
 														{/* Demographics - Clean */}
 														<div className="space-y-0.5">
 															<p className="text-sm text-slate-600 font-medium">
-																{getGenderLabel(patient.patient_gender)}
+																{getGenderLabel(patient.patientGender)}
 															</p>
 															{age && <p className="text-xs text-slate-400">{age} tuổi</p>}
-														</div>
-
+														</div>{' '}
 														{/* Symptoms - Typography Focus */}
 														<div className="border-l border-slate-200 pl-6">
 															<p className="text-sm text-slate-700 leading-relaxed line-clamp-2">
 																{patient.symptoms}
 															</p>
 														</div>
-
 														{/* Waiting Time - Minimal Color */}
 														<div className="text-right border-l border-slate-200 pl-4">
 															<div className="flex flex-col items-end">

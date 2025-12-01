@@ -1,6 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/login-form';
+
+function LoginFormWrapper() {
+	return <LoginForm />;
+}
 
 export default function LoginPage() {
 	return (
@@ -24,7 +29,9 @@ export default function LoginPage() {
 							Đăng nhập vào hệ thống quản lý hình ảnh DICOM
 						</p>
 					</div>
-					<LoginForm />
+					<Suspense fallback={<div className="text-center">Đang tải...</div>}>
+						<LoginFormWrapper />
+					</Suspense>
 				</div>
 			</div>
 		</div>

@@ -25,7 +25,7 @@ export function AddPatientDialog({ open, onOpenChange, onSuccess }: AddPatientDi
 					<DialogDescription>Điền thông tin bệnh nhân mới vào hệ thống</DialogDescription>
 				</DialogHeader>
 				<PatientForm
-					onSubmit={patient => {
+					onSubmit={() => {
 						onOpenChange(false);
 						onSuccess?.();
 					}}
@@ -56,7 +56,7 @@ export function CheckInDialog({
 			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Đăng ký khám mới</DialogTitle>
-					<DialogDescription>Tạo phiếu khám cho bệnh nhân: {patient?.full_name}</DialogDescription>
+					<DialogDescription>Tạo phiếu khám cho bệnh nhân: {patient?.fullName}</DialogDescription>
 				</DialogHeader>
 				{patient && <CheckInForm patient={patient} onSubmit={onSubmit} onCancel={onCancel} />}
 			</DialogContent>

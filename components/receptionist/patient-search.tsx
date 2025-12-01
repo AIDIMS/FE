@@ -66,17 +66,15 @@ export function PatientSearch({
 									<div className="flex items-center justify-between">
 										<div className="flex-1">
 											<div className="flex items-center gap-3 mb-2">
-												<p className="font-semibold text-slate-900 text-base">
-													{patient.full_name}
-												</p>
+												<p className="font-semibold text-slate-900 text-base">{patient.fullName}</p>
 												<span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs rounded font-mono font-semibold">
-													{patient.patient_code}
+													{patient.patientCode}
 												</span>
 											</div>
 											<div className="flex items-center gap-4 text-sm text-slate-600">
 												<span className="flex items-center gap-1.5">
 													<Phone className="h-3.5 w-3.5" />
-													{patient.phone}
+													{patient.phoneNumber}
 												</span>
 												{patient.lastVisit && (
 													<span className="text-xs text-slate-500">

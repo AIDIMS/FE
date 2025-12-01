@@ -1,154 +1,149 @@
-"use client"
+'use client';
 
-import React, { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select"
-import { ImagingOrder } from "@/lib/types/patient"
-import { Loader2 } from "lucide-react"
+} from '@/components/ui/select';
+import { ImagingOrder } from '@/lib/types/patient';
+import { Loader2 } from 'lucide-react';
 
 interface ImagingOrderFormProps {
-	visitId: string
-	order?: ImagingOrder | null
-	onSubmit: (data: Partial<ImagingOrder>) => Promise<void>
-	onCancel: () => void
+	visitId: string;
+	order?: ImagingOrder | null;
+	onSubmit: (data: Partial<ImagingOrder>) => Promise<void>;
+	onCancel: () => void;
 }
 
-export function ImagingOrderForm({
-	visitId,
-	order,
-	onSubmit,
-	onCancel,
-}: ImagingOrderFormProps) {
-	const [isLoading, setIsLoading] = useState(false)
+export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: ImagingOrderFormProps) {
+	const [isLoading, setIsLoading] = useState(false);
 	const [formData, setFormData] = useState({
-		requesting_doctor_id: order?.requesting_doctor_id || "",
-		modality_requested: order?.modality_requested || "",
-		body_part_requested: order?.body_part_requested || "",
-		reason_for_study: order?.reason_for_study || "",
-		status: order?.status || "pending",
-	})
+		requestingDoctorId: order?.requestingDoctorId || '',
+		modalityRequested: order?.modalityRequested || '',
+		bodyPartRequested: order?.bodyPartRequested || '',
+		reasonForStudy: order?.reasonForStudy || '',
+		status: order?.status || 'pending',
+	});
 
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [errors, setErrors] = useState<Record<string, string>>({});
 
 	// Mock data - sẽ được thay thế bằng API call để lấy danh sách bác sĩ
 	const mockDoctors = [
-		{ id: "doc1", name: "BS. Nguyễn Văn A" },
-		{ id: "doc2", name: "BS. Trần Thị B" },
-		{ id: "doc3", name: "BS. Lê Văn C" },
-	]
+		{ id: 'doc1', name: 'BS. Nguyễn Văn A' },
+		{ id: 'doc2', name: 'BS. Trần Thị B' },
+		{ id: 'doc3', name: 'BS. Lê Văn C' },
+	];
 
 	// Danh sách các loại chụp phổ biến
 	const modalityOptions = [
-		{ value: "CT", label: "CT Scan" },
-		{ value: "MRI", label: "MRI" },
-		{ value: "X-Ray", label: "X-Ray" },
-		{ value: "Ultrasound", label: "Siêu âm" },
-		{ value: "PET", label: "PET Scan" },
-		{ value: "Mammography", label: "Chụp nhũ ảnh" },
-		{ value: "Fluoroscopy", label: "透視 (Fluoroscopy)" },
-		{ value: "Nuclear", label: "Y học hạt nhân" },
-	]
+		{ value: 'CT', label: 'CT Scan' },
+		{ value: 'MRI', label: 'MRI' },
+		{ value: 'X-Ray', label: 'X-Ray' },
+		{ value: 'Ultrasound', label: 'Siêu âm' },
+		{ value: 'PET', label: 'PET Scan' },
+		{ value: 'Mammography', label: 'Chụp nhũ ảnh' },
+		{ value: 'Fluoroscopy', label: '透視 (Fluoroscopy)' },
+		{ value: 'Nuclear', label: 'Y học hạt nhân' },
+	];
 
 	// Danh sách vùng cơ thể phổ biến
 	const bodyPartOptions = [
-		"Đầu",
-		"Cổ",
-		"Ngực",
-		"Bụng",
-		"Xương chậu",
-		"Tứ chi trên",
-		"Tứ chi dưới",
-		"Cột sống",
-		"Tim",
-		"Phổi",
-		"Gan",
-		"Thận",
-		"Toàn thân",
-	]
+		'Đầu',
+		'Cổ',
+		'Ngực',
+		'Bụng',
+		'Xương chậu',
+		'Tứ chi trên',
+		'Tứ chi dưới',
+		'Cột sống',
+		'Tim',
+		'Phổi',
+		'Gan',
+		'Thận',
+		'Toàn thân',
+	];
 
 	const validateForm = () => {
-		const newErrors: Record<string, string> = {}
+		const newErrors: Record<string, string> = {};
 
-		if (!formData.requesting_doctor_id) {
-			newErrors.requesting_doctor_id = "Vui lòng chọn bác sĩ chỉ định"
+		if (!formData.requestingDoctorId) {
+			newErrors.requestingDoctorId = 'Vui lòng chọn bác sĩ chỉ định';
 		}
 
-		if (!formData.modality_requested) {
-			newErrors.modality_requested = "Vui lòng chọn loại chụp"
+		if (!formData.modalityRequested) {
+			newErrors.modalityRequested = 'Vui lòng chọn loại chụp';
 		}
 
-		if (!formData.body_part_requested.trim()) {
-			newErrors.body_part_requested = "Vui lòng nhập vùng cơ thể"
+		if (!formData.bodyPartRequested.trim()) {
+			newErrors.bodyPartRequested = 'Vui lòng nhập vùng cơ thể';
 		}
 
 		if (!formData.status) {
-			newErrors.status = "Vui lòng chọn trạng thái"
+			newErrors.status = 'Vui lòng chọn trạng thái';
 		}
 
-		setErrors(newErrors)
-		return Object.keys(newErrors).length === 0
-	}
+		setErrors(newErrors);
+		return Object.keys(newErrors).length === 0;
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+		e.preventDefault();
 
 		if (!validateForm()) {
-			return
+			return;
 		}
 
-		setIsLoading(true)
+		setIsLoading(true);
 		try {
 			await onSubmit({
 				...formData,
-				visit_id: visitId,
-			})
+				visitId: visitId,
+			});
 		} catch (error) {
-			console.error("Error submitting imaging order:", error)
+			console.error('Error submitting imaging order:', error);
 		} finally {
-			setIsLoading(false)
+			setIsLoading(false);
 		}
-	}
+	};
 
 	const handleChange = (field: string, value: string) => {
-		setFormData((prev) => ({ ...prev, [field]: value }))
+		setFormData(prev => ({ ...prev, [field]: value }));
 		// Clear error when user starts typing
 		if (errors[field]) {
-			setErrors((prev) => ({ ...prev, [field]: "" }))
+			setErrors(prev => ({ ...prev, [field]: '' }));
 		}
-	}
+	};
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-6">
 			{/* Requesting Doctor */}
 			<div className="space-y-2">
-				<Label htmlFor="requesting_doctor_id" className="text-sm font-medium text-gray-700">
+				<Label htmlFor="requestingDoctorId" className="text-sm font-medium text-gray-700">
 					Bác sĩ chỉ định
 					<span className="text-red-500 ml-1">*</span>
 				</Label>
 				<Select
-					value={formData.requesting_doctor_id || undefined}
-					onValueChange={(value) => handleChange("requesting_doctor_id", value)}
+					value={formData.requestingDoctorId || undefined}
+					onValueChange={value => handleChange('requestingDoctorId', value)}
 				>
 					<SelectTrigger
-						id="requesting_doctor_id"
+						id="requestingDoctorId"
 						className={`w-full bg-white transition-colors ${
-							errors.requesting_doctor_id
-								? "border-red-300 focus:border-red-500 focus:ring-red-200"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+							errors.requestingDoctorId
+								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
 						}`}
 					>
 						<SelectValue placeholder="Chọn bác sĩ chỉ định" />
 					</SelectTrigger>
 					<SelectContent>
-						{mockDoctors.map((doctor) => (
+						{mockDoctors.map(doctor => (
 							<SelectItem key={doctor.id} value={doctor.id}>
 								{doctor.name}
 							</SelectItem>
@@ -162,67 +157,67 @@ export function ImagingOrderForm({
 
 			{/* Modality */}
 			<div className="space-y-2">
-				<Label htmlFor="modality_requested" className="text-sm font-medium text-gray-700">
+				<Label htmlFor="modalityRequested" className="text-sm font-medium text-gray-700">
 					Loại chụp
 					<span className="text-red-500 ml-1">*</span>
 				</Label>
 				<Select
-					value={formData.modality_requested || undefined}
-					onValueChange={(value) => handleChange("modality_requested", value)}
+					value={formData.modalityRequested || undefined}
+					onValueChange={value => handleChange('modalityRequested', value)}
 				>
 					<SelectTrigger
-						id="modality_requested"
+						id="modalityRequested"
 						className={`w-full bg-white transition-colors ${
-							errors.modality_requested
-								? "border-red-300 focus:border-red-500 focus:ring-red-200"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+							errors.modalityRequested
+								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
 						}`}
 					>
 						<SelectValue placeholder="Chọn loại chụp" />
 					</SelectTrigger>
 					<SelectContent>
-						{modalityOptions.map((option) => (
+						{modalityOptions.map(option => (
 							<SelectItem key={option.value} value={option.value}>
 								{option.label}
 							</SelectItem>
 						))}
 					</SelectContent>
 				</Select>
-				{errors.modality_requested && (
-					<p className="text-sm text-red-600 mt-1">{errors.modality_requested}</p>
+				{errors.modalityRequested && (
+					<p className="text-sm text-red-600 mt-1">{errors.modalityRequested}</p>
 				)}
 			</div>
 
 			{/* Body Part */}
 			<div className="space-y-2">
-				<Label htmlFor="body_part_requested" className="text-sm font-medium text-gray-700">
+				<Label htmlFor="bodyPartRequested" className="text-sm font-medium text-gray-700">
 					Vùng cơ thể
 					<span className="text-red-500 ml-1">*</span>
 				</Label>
 				<div className="space-y-2">
 					<Input
-						id="body_part_requested"
+						id="bodyPartRequested"
 						type="text"
-						placeholder="Nhập hoặc chọn vùng cơ thể"
-						value={formData.body_part_requested}
-						onChange={(e) => handleChange("body_part_requested", e.target.value)}
-						className={`bg-white transition-colors ${
-							errors.body_part_requested
-								? "border-red-300 focus:border-red-500 focus:ring-red-200"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-200"
+						placeholder="Nhập vùng cơ thể"
+						value={formData.bodyPartRequested}
+						onChange={e => handleChange('bodyPartRequested', e.target.value)}
+						className={`w-full bg-white transition-colors ${
+							errors.bodyPartRequested
+								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
 						}`}
 					/>
 					{/* Quick select buttons */}
 					<div className="flex flex-wrap gap-2">
-						{bodyPartOptions.map((part) => (
+						{bodyPartOptions.map(part => (
 							<button
 								key={part}
 								type="button"
-								onClick={() => handleChange("body_part_requested", part)}
+								onClick={() => handleChange('bodyPartRequested', part)}
 								className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-									formData.body_part_requested === part
-										? "bg-blue-100 border-blue-300 text-blue-700"
-										: "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+									formData.bodyPartRequested === part
+										? 'bg-blue-100 border-blue-300 text-blue-700'
+										: 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
 								}`}
 							>
 								{part}
@@ -230,23 +225,23 @@ export function ImagingOrderForm({
 						))}
 					</div>
 				</div>
-				{errors.body_part_requested && (
-					<p className="text-sm text-red-600 mt-1">{errors.body_part_requested}</p>
+				{errors.bodyPartRequested && (
+					<p className="text-sm text-red-600 mt-1">{errors.bodyPartRequested}</p>
 				)}
 			</div>
 
 			{/* Reason for Study */}
 			<div className="space-y-2">
-				<Label htmlFor="reason_for_study" className="text-sm font-medium text-gray-700">
+				<Label htmlFor="reasonForStudy" className="text-sm font-medium text-gray-700">
 					Lý do chỉ định
 					<span className="text-gray-400 ml-1 text-xs">(Tùy chọn)</span>
 				</Label>
 				<textarea
-					id="reason_for_study"
+					id="reasonForStudy"
 					rows={4}
 					placeholder="Mô tả lý do chỉ định chụp chiếu..."
-					value={formData.reason_for_study}
-					onChange={(e) => handleChange("reason_for_study", e.target.value)}
+					value={formData.reasonForStudy}
+					onChange={e => handleChange('reasonForStudy', e.target.value)}
 					className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-200 transition-colors resize-none"
 				/>
 			</div>
@@ -257,16 +252,13 @@ export function ImagingOrderForm({
 					Trạng thái
 					<span className="text-red-500 ml-1">*</span>
 				</Label>
-				<Select
-					value={formData.status}
-					onValueChange={(value) => handleChange("status", value)}
-				>
+				<Select value={formData.status} onValueChange={value => handleChange('status', value)}>
 					<SelectTrigger
 						id="status"
 						className={`w-full bg-white transition-colors ${
 							errors.status
-								? "border-red-300 focus:border-red-500 focus:ring-red-200"
-								: "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
 						}`}
 					>
 						<SelectValue placeholder="Chọn trạng thái" />
@@ -298,9 +290,7 @@ export function ImagingOrderForm({
 						</SelectItem>
 					</SelectContent>
 				</Select>
-				{errors.status && (
-					<p className="text-sm text-red-600 mt-1">{errors.status}</p>
-				)}
+				{errors.status && <p className="text-sm text-red-600 mt-1">{errors.status}</p>}
 			</div>
 
 			{/* Form Actions */}
@@ -325,10 +315,10 @@ export function ImagingOrderForm({
 							Đang lưu...
 						</>
 					) : (
-						<>{order ? "Cập nhật" : "Tạo chỉ định"}</>
+						<>{order ? 'Cập nhật' : 'Tạo chỉ định'}</>
 					)}
 				</Button>
 			</div>
 		</form>
-	)
+	);
 }
