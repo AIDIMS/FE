@@ -48,7 +48,6 @@ export default function TechnicianOrderDetail() {
 
 			const orderData = result.data;
 
-			// Lấy thông tin patient nếu có patientId
 			let patientData = null;
 			if (orderData.patientId) {
 				try {
@@ -58,11 +57,9 @@ export default function TechnicianOrderDetail() {
 					}
 				} catch (error) {
 					console.error('Error loading patient data:', error);
-					// Tiếp tục với thông tin từ order nếu không lấy được patient
 				}
 			}
 
-			// Tính toán tuổi từ dateOfBirth
 			const calculateAge = (dateOfBirth: string | null): number => {
 				if (!dateOfBirth) return 0;
 				try {
@@ -127,7 +124,6 @@ export default function TechnicianOrderDetail() {
 	const processDicomFile = useCallback(
 		async (file: File, fileId: string) => {
 			try {
-				// Cập nhật progress để hiển thị đang xử lý
 				setUploadedFiles(prev =>
 					prev.map(f => {
 						if (f.id === fileId) {
@@ -200,7 +196,7 @@ export default function TechnicianOrderDetail() {
 								processedFile,
 								newStudyUID,
 								newSeriesUID,
-								fileObject: processedFile, // Sử dụng file đã xử lý cho preview
+								fileObject: processedFile,
 							};
 						}
 						return f;
@@ -208,7 +204,6 @@ export default function TechnicianOrderDetail() {
 				);
 			} catch (error) {
 				console.error('Error processing DICOM file:', error);
-				// Cập nhật trạng thái lỗi
 				setUploadedFiles(prev =>
 					prev.map(f => {
 						if (f.id === fileId) {
@@ -339,13 +334,12 @@ export default function TechnicianOrderDetail() {
 		setIsProcessing(true);
 
 		try {
-			// Upload từng file
 			for (const file of completedFiles) {
 				try {
 					await uploadDicomFile(file);
 				} catch (error) {
 					console.error(`Error uploading file ${file.name}:`, error);
-					throw error; // Dừng lại nếu có lỗi
+					throw error;
 				}
 			}
 

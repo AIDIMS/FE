@@ -237,6 +237,106 @@ export class ApiClient {
 			body: body ? JSON.stringify(body) : undefined,
 		});
 	}
+
+	public async uploadFile<T>(endpoint: string, data: UploadDicomDto): Promise<ApiResult<T>> {
+		const url = `${this.baseURL}${endpoint}`;
+		const token = this.getToken();
+
+		if (!token) {
+			return {
+				isSuccess: false,
+				message: 'Không tìm thấy token xác thực. Vui lòng đăng nhập lại.',
+				errors: ['Unauthorized'],
+			};
+		}
+
+		const formData = new FormData();
+		formData.append('file', data.file);
+		formData.append('orderId', data.orderId);
+		formData.append('patientId', data.patientId);
+
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					accept: 'text/plain',
+					Authorization: `Bearer ${token}`,
+				},
+				body: formData,
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				return {
+					isSuccess: false,
+					message: `Upload failed: ${response.status} ${response.statusText}`,
+					errors: [errorText],
+				};
+			}
+
+			return {
+				isSuccess: true,
+				message: 'Upload thành công',
+			} as ApiResult<T>;
+		} catch (error) {
+			return {
+				isSuccess: false,
+				message: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi upload file',
+				errors: [error instanceof Error ? error.message : 'Unknown error'],
+			};
+		}
+	}
+
+	public async getFile<T>(endpoint: string): Promise<ApiResult<T>> {
+		const url = `${this.baseURL}${endpoint}`;
+		const token = this.getToken();
+
+		if (!token) {
+			return {
+				isSuccess: false,
+				message: 'Không tìm thấy token xác thực. Vui lòng đăng nhập lại.',
+				errors: ['Unauthorized'],
+			};
+		}
+
+		try {
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				return {
+					isSuccess: false,
+					message: `Failed to get file: ${response.status} ${response.statusText}`,
+					errors: [errorText],
+				};
+			}
+
+			const blob = await response.blob();
+			return {
+				isSuccess: true,
+				data: blob as T,
+				message: 'Lấy file thành công',
+			};
+		} catch (error) {
+			return {
+				isSuccess: false,
+				message: error instanceof Error ? error.message : 'Đã xảy ra lỗi khi lấy file',
+				errors: [error instanceof Error ? error.message : 'Unknown error'],
+			};
+		}
+	}
+}
+
+// Export interface for upload
+export interface UploadDicomDto {
+	file: File;
+	orderId: string;
+	patientId: string;
 }
 
 // Export singleton instance
