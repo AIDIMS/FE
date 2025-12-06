@@ -9,6 +9,9 @@ export interface UploadedFile {
 	progress: number;
 	status: 'uploading' | 'completed' | 'error';
 	fileObject?: File; // Lưu trữ File object gốc để preview
+	processedFile?: File; // File DICOM đã được xử lý từ API
+	newStudyUID?: string; // UID mới từ header X-New-Study-UID
+	newSeriesUID?: string; // UID mới từ header X-New-Series-UID
 }
 
 interface UploadedFilesListProps {

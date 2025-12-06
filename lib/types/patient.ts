@@ -76,3 +76,24 @@ export interface PatientWithDetails extends Patient {
 	visits: PatientVisit[];
 	imagingOrders: ImagingOrder[];
 }
+
+// Interface cho Technician Order Detail Page (có thêm thông tin patient và các field UI)
+export interface TechnicianImagingOrder {
+	id: string;
+	visit_id: string;
+	patient_id?: string; // ID của bệnh nhân
+	patient_name: string;
+	patient_code: string;
+	patient_gender: 'male' | 'female' | 'other';
+	patient_age: number;
+	patient_dob: string;
+	modality_requested: string;
+	body_part_requested: string;
+	reason_for_study: string | null;
+	requesting_doctor: string;
+	status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+	priority: 'normal' | 'urgent' | 'stat';
+	created_at: string;
+	scheduled_time?: string;
+	notes?: string;
+}

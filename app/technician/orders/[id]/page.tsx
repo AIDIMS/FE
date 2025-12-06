@@ -11,6 +11,10 @@ import { PatientInfoCard } from '@/components/technician/patient-info-card';
 import { OrderDetailsCard } from '@/components/technician/order-details-card';
 import { FileUploadZone } from '@/components/technician/file-upload-zone';
 import { UploadedFilesList, UploadedFile } from '@/components/technician/uploaded-files-list';
+import { imagingOrderService } from '@/lib/api/services/imaging-order.service';
+import { patientService } from '@/lib/api/services/patient.service';
+import { dicomService } from '@/lib/api/services/dicom.service';
+import { TechnicianImagingOrder } from '@/lib/types/patient';
 import dynamic from 'next/dynamic';
 
 const DicomViewer = dynamic(() => import('@/components/technician/dicom-viewer'), {
@@ -18,31 +22,12 @@ const DicomViewer = dynamic(() => import('@/components/technician/dicom-viewer')
 	loading: () => <p>Loading Viewer...</p>,
 });
 
-interface ImagingOrder {
-	id: string;
-	visit_id: string;
-	patient_name: string;
-	patient_code: string;
-	patient_gender: 'male' | 'female' | 'other';
-	patient_age: number;
-	patient_dob: string;
-	modality_requested: string;
-	body_part_requested: string;
-	reason_for_study: string | null;
-	requesting_doctor: string;
-	status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-	priority: 'normal' | 'urgent' | 'stat';
-	created_at: string;
-	scheduled_time?: string;
-	notes?: string;
-}
-
 export default function TechnicianOrderDetail() {
 	const router = useRouter();
 	const params = useParams();
 	const orderId = params.id as string;
 
-	const [order, setOrder] = useState<ImagingOrder | null>(null);
+	const [order, setOrder] = useState<TechnicianImagingOrder | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 	const [isDragging, setIsDragging] = useState(false);
@@ -52,89 +37,228 @@ export default function TechnicianOrderDetail() {
 	const loadOrderDetail = useCallback(async () => {
 		setIsLoading(true);
 		try {
-			await new Promise(resolve => setTimeout(resolve, 500));
-			// Mock data
-			const mockOrder: ImagingOrder = {
-				id: orderId,
-				visit_id: 'visit1',
-				patient_name: 'Nguyễn Văn A',
-				patient_code: 'BN001',
-				patient_gender: 'male',
-				patient_age: 45,
-				patient_dob: '1979-03-15',
-				modality_requested: 'CT',
-				body_part_requested: 'Đầu',
-				reason_for_study: 'Nghi ngờ chấn thương sọ não sau tai nạn giao thông.',
-				requesting_doctor: 'BS. Trần Thị B',
-				status: 'pending',
-				priority: 'urgent',
-				created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-				notes: 'Yêu cầu chụp có tiêm thuốc cản quang.',
+			// Gọi API để lấy chi tiết order
+			const result = await imagingOrderService.getById(orderId);
+
+			if (!result.isSuccess || !result.data) {
+				alert(result.message || 'Không thể tải thông tin chỉ định');
+				router.push('/technician/worklist');
+				return;
+			}
+
+			const orderData = result.data;
+
+			// Lấy thông tin patient nếu có patientId
+			let patientData = null;
+			if (orderData.patientId) {
+				try {
+					const patientResult = await patientService.getById(orderData.patientId);
+					if (patientResult.isSuccess && patientResult.data) {
+						patientData = patientResult.data;
+					}
+				} catch (error) {
+					console.error('Error loading patient data:', error);
+					// Tiếp tục với thông tin từ order nếu không lấy được patient
+				}
+			}
+
+			// Tính toán tuổi từ dateOfBirth
+			const calculateAge = (dateOfBirth: string | null): number => {
+				if (!dateOfBirth) return 0;
+				try {
+					const birthDate = new Date(dateOfBirth);
+					const today = new Date();
+					let age = today.getFullYear() - birthDate.getFullYear();
+					const monthDiff = today.getMonth() - birthDate.getMonth();
+					if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+						age--;
+					}
+					return age;
+				} catch {
+					return 0;
+				}
 			};
 
-			setOrder(mockOrder);
-			if (mockOrder.status === 'pending') {
-				setTimeout(() => {
-					setOrder(prev => (prev ? { ...prev, status: 'in_progress' } : null));
-				}, 1000);
-			}
+			// Map gender string sang type
+			const mapGender = (gender: string | null): 'male' | 'female' | 'other' => {
+				if (!gender) return 'other';
+				const lowerGender = gender.toLowerCase();
+				if (lowerGender === 'male' || lowerGender === 'nam') return 'male';
+				if (lowerGender === 'female' || lowerGender === 'nữ') return 'female';
+				return 'other';
+			};
+
+			// Map dữ liệu từ API vào interface hiện tại
+			const mappedOrder: TechnicianImagingOrder = {
+				id: orderData.id,
+				visit_id: orderData.visitId,
+				patient_id: orderData.patientId,
+				patient_name: orderData.patientName || patientData?.fullName || '',
+				patient_code: patientData?.patientCode || '',
+				patient_gender: mapGender(patientData?.gender || null),
+				patient_age: calculateAge(patientData?.dateOfBirth || null),
+				patient_dob: patientData?.dateOfBirth || '',
+				modality_requested: orderData.modalityRequested || '',
+				body_part_requested: orderData.bodyPartRequested || '',
+				reason_for_study: orderData.reasonForStudy,
+				requesting_doctor: orderData.requestingDoctorName || '',
+				status:
+					(orderData.status as 'pending' | 'in_progress' | 'completed' | 'cancelled') || 'pending',
+				priority: 'normal', // API không trả về priority, để mặc định
+				created_at: orderData.createdAt,
+				notes: undefined, // API không trả về notes
+			};
+
+			setOrder(mappedOrder);
 		} catch (error) {
 			console.error('Error loading order:', error);
+			alert('Đã xảy ra lỗi khi tải thông tin chỉ định');
+			router.push('/technician/worklist');
 		} finally {
 			setIsLoading(false);
 		}
-	}, [orderId]);
+	}, [orderId, router]);
 
 	useEffect(() => {
 		loadOrderDetail();
 	}, [loadOrderDetail]);
 
 	// --- File Processing Logic ---
-	const simulateUpload = (fileId: string) => {
-		const interval = setInterval(() => {
-			setUploadedFiles(prev =>
-				prev.map(file => {
-					if (file.id === fileId) {
-						const newProgress = Math.min(file.progress + 10, 100);
-						if (newProgress === 100) {
-							clearInterval(interval);
-							return { ...file, progress: 100, status: 'completed' as const };
+	const processDicomFile = useCallback(
+		async (file: File, fileId: string) => {
+			try {
+				// Cập nhật progress để hiển thị đang xử lý
+				setUploadedFiles(prev =>
+					prev.map(f => {
+						if (f.id === fileId) {
+							return { ...f, progress: 30, status: 'uploading' as const };
 						}
-						return { ...file, progress: newProgress };
-					}
-					return file;
-				})
+						return f;
+					})
+				);
+
+				// Tạo metadata từ thông tin order
+				const metadata = {
+					patientName: order?.patient_name || 'DEMO^NGUYEN',
+					patientID: order?.patient_id || 'MA_BENH_AN_456',
+					accessionNumber: order?.id || 'MA_CHI_DINH_ORDER_123',
+				};
+
+				// Tạo FormData để gửi file và metadata
+				const formData = new FormData();
+				formData.append('dicom_file', file);
+				formData.append('metadata', JSON.stringify(metadata));
+
+				// Cập nhật progress trước khi gọi API
+				setUploadedFiles(prev =>
+					prev.map(f => {
+						if (f.id === fileId) {
+							return { ...f, progress: 50, status: 'uploading' as const };
+						}
+						return f;
+					})
+				);
+
+				// Gọi API để xử lý DICOM
+				const response = await fetch('http://localhost:5000/process_dicom', {
+					method: 'POST',
+					body: formData,
+				});
+
+				if (!response.ok) {
+					throw new Error(`API error: ${response.status} ${response.statusText}`);
+				}
+
+				// Cập nhật progress khi nhận được response
+				setUploadedFiles(prev =>
+					prev.map(f => {
+						if (f.id === fileId) {
+							return { ...f, progress: 80, status: 'uploading' as const };
+						}
+						return f;
+					})
+				);
+
+				// Lấy UIDs từ headers
+				const newStudyUID = response.headers.get('X-New-Study-UID') || undefined;
+				const newSeriesUID = response.headers.get('X-New-Series-UID') || undefined;
+
+				// Lấy file đã xử lý từ response
+				const blob = await response.blob();
+				const processedFile = new File([blob], file.name, {
+					type: 'application/dicom',
+				});
+
+				// Cập nhật file với thông tin đã xử lý
+				setUploadedFiles(prev =>
+					prev.map(f => {
+						if (f.id === fileId) {
+							return {
+								...f,
+								progress: 100,
+								status: 'completed' as const,
+								processedFile,
+								newStudyUID,
+								newSeriesUID,
+								fileObject: processedFile, // Sử dụng file đã xử lý cho preview
+							};
+						}
+						return f;
+					})
+				);
+			} catch (error) {
+				console.error('Error processing DICOM file:', error);
+				// Cập nhật trạng thái lỗi
+				setUploadedFiles(prev =>
+					prev.map(f => {
+						if (f.id === fileId) {
+							return {
+								...f,
+								status: 'error' as const,
+							};
+						}
+						return f;
+					})
+				);
+				alert(
+					`Lỗi khi xử lý file ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+				);
+			}
+		},
+		[order]
+	);
+
+	const handleFiles = useCallback(
+		(files: File[]) => {
+			const validFiles = files.filter(
+				f =>
+					f.name.toLowerCase().endsWith('.dcm') ||
+					f.name.toLowerCase().endsWith('.dicom') ||
+					f.type === 'application/dicom'
 			);
-		}, 200);
-	};
 
-	const handleFiles = useCallback((files: File[]) => {
-		const validFiles = files.filter(
-			f =>
-				f.name.toLowerCase().endsWith('.dcm') ||
-				f.name.toLowerCase().endsWith('.dicom') ||
-				f.type === 'application/dicom'
-		);
+			if (validFiles.length < files.length) {
+				alert('Đã bỏ qua một số file không đúng định dạng DICOM');
+			}
 
-		if (validFiles.length < files.length) {
-			alert('Đã bỏ qua một số file không đúng định dạng DICOM');
-		}
+			const newFiles: UploadedFile[] = validFiles.map(file => ({
+				id: Math.random().toString(36).substring(7),
+				name: file.name,
+				size: file.size,
+				progress: 0,
+				status: 'uploading',
+				fileObject: file, // Lưu file gốc tạm thời
+			}));
 
-		const newFiles: UploadedFile[] = validFiles.map(file => ({
-			id: Math.random().toString(36).substring(7),
-			name: file.name,
-			size: file.size,
-			progress: 0,
-			status: 'uploading',
-			fileObject: file, // Lưu file gốc
-		}));
+			setUploadedFiles(prev => [...prev, ...newFiles]);
 
-		setUploadedFiles(prev => [...prev, ...newFiles]);
-
-		newFiles.forEach(file => {
-			simulateUpload(file.id);
-		});
-	}, []);
+			// Xử lý từng file DICOM qua API
+			newFiles.forEach(file => {
+				processDicomFile(file.fileObject!, file.id);
+			});
+		},
+		[processDicomFile]
+	);
 
 	// --- Drag & Drop Handlers ---
 	const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -179,18 +303,62 @@ export default function TechnicianOrderDetail() {
 		setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
 	};
 
+	const uploadDicomFile = async (file: UploadedFile): Promise<void> => {
+		if (!file.processedFile) {
+			throw new Error(`File ${file.name} chưa được xử lý`);
+		}
+
+		if (!order) {
+			throw new Error('Không tìm thấy thông tin chỉ định');
+		}
+
+		if (!order.patient_id) {
+			throw new Error('Không tìm thấy ID bệnh nhân');
+		}
+
+		// Sử dụng DicomService để upload
+		const result = await dicomService.upload({
+			file: file.processedFile,
+			orderId: order.id,
+			patientId: order.patient_id,
+		});
+
+		if (!result.isSuccess) {
+			throw new Error(result.message || 'Upload thất bại');
+		}
+	};
+
 	const handleComplete = async () => {
-		if (uploadedFiles.filter(f => f.status === 'completed').length === 0) {
-			alert('Vui lòng upload ít nhất 1 file DICOM');
+		const completedFiles = uploadedFiles.filter(f => f.status === 'completed' && f.processedFile);
+
+		if (completedFiles.length === 0) {
+			alert('Vui lòng upload ít nhất 1 file DICOM đã được xử lý');
 			return;
 		}
+
 		setIsProcessing(true);
-		// Simulate API call
-		setTimeout(() => {
+
+		try {
+			// Upload từng file
+			for (const file of completedFiles) {
+				try {
+					await uploadDicomFile(file);
+				} catch (error) {
+					console.error(`Error uploading file ${file.name}:`, error);
+					throw error; // Dừng lại nếu có lỗi
+				}
+			}
+
 			alert('Hoàn thành chỉ định thành công!');
-			setIsProcessing(false);
 			router.push('/technician/worklist');
-		}, 1500);
+		} catch (error) {
+			console.error('Error completing order:', error);
+			alert(
+				`Lỗi khi hoàn thành chỉ định: ${error instanceof Error ? error.message : 'Unknown error'}`
+			);
+		} finally {
+			setIsProcessing(false);
+		}
 	};
 
 	// --- Render ---
