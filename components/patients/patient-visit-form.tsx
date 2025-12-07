@@ -35,7 +35,6 @@ export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: Patie
 	const [formData, setFormData] = useState({
 		assigned_doctor_id: visit?.assignedDoctorId || '',
 		symptoms: visit?.symptoms || '',
-		status: visit?.status || 'waiting',
 	});
 
 	const [errors, setErrors] = useState<Record<string, string>>({});
@@ -68,10 +67,6 @@ export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: Patie
 
 		if (!formData.symptoms.trim()) {
 			newErrors.symptoms = 'Vui lòng nhập triệu chứng';
-		}
-
-		if (!formData.status) {
-			newErrors.status = 'Vui lòng chọn trạng thái';
 		}
 
 		setErrors(newErrors);
@@ -163,53 +158,6 @@ export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: Patie
 					}`}
 				/>
 				{errors.symptoms && <p className="text-sm text-red-600 mt-1">{errors.symptoms}</p>}
-			</div>
-
-			{/* Status */}
-			<div className="space-y-2">
-				<Label htmlFor="status" className="text-sm font-medium text-gray-700">
-					Trạng thái
-					<span className="text-red-500 ml-1">*</span>
-				</Label>
-				<Select value={formData.status} onValueChange={value => handleChange('status', value)}>
-					<SelectTrigger
-						id="status"
-						className={`w-full bg-white transition-colors ${
-							errors.status
-								? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-								: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-						}`}
-					>
-						<SelectValue placeholder="Chọn trạng thái" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="waiting">
-							<div className="flex items-center gap-2">
-								<div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-								<span>Chờ khám</span>
-							</div>
-						</SelectItem>
-						<SelectItem value="in_progress">
-							<div className="flex items-center gap-2">
-								<div className="w-2 h-2 rounded-full bg-blue-500"></div>
-								<span>Đang xử lý</span>
-							</div>
-						</SelectItem>
-						<SelectItem value="completed">
-							<div className="flex items-center gap-2">
-								<div className="w-2 h-2 rounded-full bg-green-500"></div>
-								<span>Hoàn thành</span>
-							</div>
-						</SelectItem>
-						<SelectItem value="cancelled">
-							<div className="flex items-center gap-2">
-								<div className="w-2 h-2 rounded-full bg-red-500"></div>
-								<span>Đã hủy</span>
-							</div>
-						</SelectItem>
-					</SelectContent>
-				</Select>
-				{errors.status && <p className="text-sm text-red-600 mt-1">{errors.status}</p>}
 			</div>
 
 			{/* Form Actions */}
