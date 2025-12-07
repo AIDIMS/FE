@@ -39,6 +39,16 @@ export class VisitService {
 		);
 	}
 
+	async getByDoctorId(
+		doctorId: string,
+		pageNumber: number = 1,
+		pageSize: number = 10
+	): Promise<ApiResult<PaginatedResult<PatientVisit>>> {
+		return apiClient.get<PaginatedResult<PatientVisit>>(
+			`${API_ENDPOINTS.VISITS.BASE}?assignedDoctorId=${doctorId}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+		);
+	}
+
 	async create(visitData: CreateVisitDto): Promise<ApiResult<PatientVisit>> {
 		return apiClient.post<PatientVisit>(API_ENDPOINTS.VISITS.BASE, visitData);
 	}

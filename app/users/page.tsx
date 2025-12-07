@@ -5,12 +5,30 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Plus, Search, Pencil, Trash2, UserCheck, UserX } from 'lucide-react';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+	Users,
+	Plus,
+	Search,
+	Pencil,
+	Trash2,
+	UserCheck,
+	UserX,
+	MoreVertical,
+	Filter,
+} from 'lucide-react';
 import { userService } from '@/lib/api';
 import { UserListDto, UserRole } from '@/lib/types';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserFormDialog } from '@/components/users/user-form-dialog';
 import { DeleteUserDialog } from '@/components/users/delete-user-dialog';
+import { UserTable } from '@/components/users/user-table';
 import { getDepartmentName, getRoleName } from '@/lib/utils/role';
 
 export default function UsersPage() {
@@ -110,182 +128,124 @@ export default function UsersPage() {
 	return (
 		<DashboardLayout>
 			<div className="container mx-auto px-4 py-6 max-w-7xl">
-				{/* Header */}
+				{/* Header Section */}
 				<div className="mb-8">
-					<div className="flex items-center gap-3 mb-2">
-						<div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center">
-							<Users className="h-6 w-6 text-white" />
-						</div>
-						<div className="flex-1">
-							<h1 className="text-3xl font-bold text-gray-900">Quản lý người dùng</h1>
-							<p className="text-sm text-gray-600 mt-1">
+					<div className="flex items-center justify-between mb-4">
+						<div>
+							<h1 className="text-3xl font-bold text-gray-900 mb-2">Quản lý người dùng</h1>
+							<p className="text-sm text-gray-600">
 								Quản lý tài khoản và phân quyền người dùng trong hệ thống
 							</p>
 						</div>
-						<Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
-							<Plus className="h-4 w-4" />
+						<Button
+							onClick={() => setIsCreateDialogOpen(true)}
+							className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all h-10 px-4"
+						>
+							<Plus className="h-4 w-4 mr-2" />
 							Thêm người dùng
 						</Button>
 					</div>
+
+					{/* Stats Cards */}
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+						<Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+							<CardContent className="p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
+											Tổng người dùng
+										</p>
+										<p className="text-3xl font-bold text-blue-900">{totalCount}</p>
+										<p className="text-xs text-blue-600 mt-1">Tài khoản</p>
+									</div>
+									<div className="h-12 w-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-md">
+										<Users className="h-6 w-6 text-white" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+						<Card className="bg-gradient-to-br from-green-50 to-green-100/50 border-green-200 shadow-sm hover:shadow-md transition-shadow">
+							<CardContent className="p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2">
+											Đang hoạt động
+										</p>
+										<p className="text-3xl font-bold text-green-900">
+											{users.filter(u => !u.isDeleted).length}
+										</p>
+										<p className="text-xs text-green-600 mt-1">Tài khoản</p>
+									</div>
+									<div className="h-12 w-12 rounded-2xl bg-green-600 flex items-center justify-center shadow-md">
+										<UserCheck className="h-6 w-6 text-white" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+						<Card className="bg-gradient-to-br from-red-50 to-red-100/50 border-red-200 shadow-sm hover:shadow-md transition-shadow">
+							<CardContent className="p-5">
+								<div className="flex items-center justify-between">
+									<div>
+										<p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-2">
+											Vô hiệu hóa
+										</p>
+										<p className="text-3xl font-bold text-red-900">
+											{users.filter(u => u.isDeleted).length}
+										</p>
+										<p className="text-xs text-red-600 mt-1">Tài khoản</p>
+									</div>
+									<div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center shadow-md">
+										<UserX className="h-6 w-6 text-white" />
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					</div>
 				</div>
 
-				{/* Search and Filter */}
-				<Card className="mb-6">
-					<CardContent className="pt-6">
-						<div className="flex gap-4">
-							<div className="relative flex-1">
-								<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-								<Input
-									placeholder="Tìm kiếm theo tên, email, username..."
-									value={searchQuery}
-									onChange={e => setSearchQuery(e.target.value)}
-									className="pl-10"
-								/>
-							</div>
-						</div>
-					</CardContent>
-				</Card>
+				{/* Search and Filter Bar */}
+				<div className="mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+					<div className="relative flex-1 max-w-md w-full">
+						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+						<Input
+							placeholder="Tìm kiếm theo tên, email, username..."
+							value={searchQuery}
+							onChange={e => setSearchQuery(e.target.value)}
+							className="pl-10 bg-white border-gray-300 focus:border-blue-600 focus:ring-blue-600 h-10 shadow-sm"
+						/>
+					</div>
+					<Button
+						variant="outline"
+						className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+					>
+						<Filter className="h-4 w-4 mr-2" />
+						Bộ lọc
+					</Button>
+				</div>
 
 				{/* Users Table */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Danh sách người dùng</CardTitle>
-						<CardDescription>
-							Tổng số {totalCount} người dùng - Trang {pageNumber} / {totalPages}
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						{(() => {
-							if (isLoading) {
-								return (
-									<div className="text-center py-12">
-										<div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-										<p className="mt-4 text-gray-600">Đang tải...</p>
-									</div>
-								);
-							} else if (filteredUsers.length === 0) {
-								return (
-									<div className="text-center py-12 text-gray-500">
-										<Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-										<p>Không tìm thấy người dùng nào</p>
-									</div>
-								);
-							} else {
-								return (
-									<div className="overflow-x-auto">
-										<table className="w-full">
-											<thead>
-												<tr className="border-b border-gray-200">
-													<th className="text-left py-3 px-4 font-semibold text-gray-900">
-														Người dùng
-													</th>
-													<th className="text-left py-3 px-4 font-semibold text-gray-900">Email</th>
-													<th className="text-left py-3 px-4 font-semibold text-gray-900">
-														Vai trò
-													</th>
-													<th className="text-left py-3 px-4 font-semibold text-gray-900">
-														Phòng ban
-													</th>
-													<th className="text-left py-3 px-4 font-semibold text-gray-900">
-														Trạng thái
-													</th>
-													<th className="text-right py-3 px-4 font-semibold text-gray-900">
-														Thao tác
-													</th>
-												</tr>
-											</thead>
-											<tbody>
-												{filteredUsers.map(user => (
-													<tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-														<td className="py-3 px-4">
-															<div>
-																<p className="font-medium text-gray-900">
-																	{user.firstName} {user.lastName}
-																</p>
-																<p className="text-sm text-gray-500">@{user.username}</p>
-															</div>
-														</td>
-														<td className="py-3 px-4 text-gray-700">{user.email}</td>
-														<td className="py-3 px-4">
-															<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-																{getRoleName(user.role)}
-															</span>
-														</td>
-														<td className="py-3 px-4 text-gray-700">
-															{getDepartmentName(user.department)}
-														</td>
-														<td className="py-3 px-4">
-															{!user.isDeleted ? (
-																<span className="inline-flex items-center gap-1 text-green-700">
-																	<UserCheck className="h-4 w-4" />
-																	<span className="text-sm">Hoạt động</span>
-																</span>
-															) : (
-																<span className="inline-flex items-center gap-1 text-red-700">
-																	<UserX className="h-4 w-4" />
-																	<span className="text-sm">Vô hiệu hóa</span>
-																</span>
-															)}
-														</td>
-														<td className="py-3 px-4">
-															<div className="flex items-center justify-end gap-2">
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	onClick={() => handleEditClick(user)}
-																	className="gap-1"
-																	disabled={user.isDeleted}
-																>
-																	<Pencil className="h-4 w-4" />
-																	Sửa
-																</Button>
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	onClick={() => handleDeleteClick(user)}
-																	className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-																	disabled={user.id === currentUser?.id || user.isDeleted}
-																>
-																	<Trash2 className="h-4 w-4" />
-																	Xóa
-																</Button>
-															</div>
-														</td>
-													</tr>
-												))}
-											</tbody>
-										</table>
-									</div>
-								);
-							}
-						})()}
-
-						{/* Pagination */}
-						{totalPages > 1 && (
-							<div className="mt-6 flex items-center justify-between">
-								<div className="text-sm text-gray-600">
-									Hiển thị {filteredUsers.length} / {totalCount} người dùng
-								</div>
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => setPageNumber(p => Math.max(1, p - 1))}
-										disabled={pageNumber === 1}
-									>
-										Trước
-									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => setPageNumber(p => Math.min(totalPages, p + 1))}
-										disabled={pageNumber === totalPages}
-									>
-										Sau
-									</Button>
-								</div>
+				<Card className="bg-white border-gray-200 shadow-md overflow-hidden">
+					<CardHeader className="border-b border-gray-200 bg-white">
+						<div className="flex items-center justify-between">
+							<div>
+								<CardTitle className="text-lg font-semibold text-gray-900">
+									Danh sách người dùng
+								</CardTitle>
+								<CardDescription className="mt-1">
+									{filteredUsers.length} người dùng
+									{searchQuery && ` (${filteredUsers.length} kết quả tìm thấy)`}
+								</CardDescription>
 							</div>
-						)}
+						</div>
+					</CardHeader>
+					<CardContent className="p-0">
+						<UserTable
+							users={filteredUsers}
+							onEdit={handleEditClick}
+							onDelete={handleDeleteClick}
+							isLoading={isLoading}
+							currentUserId={currentUser?.id}
+						/>
 					</CardContent>
 				</Card>
 			</div>
