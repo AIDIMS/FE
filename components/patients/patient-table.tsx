@@ -111,13 +111,7 @@ export function PatientTable({
 			<Table>
 				<TableHeader>
 					<TableRow className="border-b border-gray-200 bg-gray-50/50 hover:bg-transparent">
-						<TableHead className="w-12 h-12">
-							<input
-								type="checkbox"
-								className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
-							/>
-						</TableHead>
-						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
+						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider pl-6">
 							Mã BN
 						</TableHead>
 						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
@@ -138,7 +132,7 @@ export function PatientTable({
 						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
 							Ngày thêm
 						</TableHead>
-						<TableHead className="w-12"></TableHead>
+						<TableHead className="w-12 pr-6"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -148,14 +142,7 @@ export function PatientTable({
 							className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors cursor-pointer group"
 							onClick={() => router.push(`/patients/${patient.id}`)}
 						>
-							<TableCell className="h-16">
-								<input
-									type="checkbox"
-									className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer"
-									onClick={e => e.stopPropagation()}
-								/>
-							</TableCell>
-							<TableCell className="font-medium text-gray-900">
+							<TableCell className="font-medium text-gray-900 pl-6">
 								<span className="font-mono text-sm">{patient.patientCode}</span>
 							</TableCell>
 							<TableCell>
@@ -183,13 +170,13 @@ export function PatientTable({
 							<TableCell className="text-sm text-gray-600">
 								{formatDate(patient.createdAt)}
 							</TableCell>
-							<TableCell>
+							<TableCell className="pr-6">
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
 										<Button
 											variant="ghost"
 											size="icon"
-											className="h-8 w-8 text-gray-400 hover:text-gray-900 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+											className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
 											onClick={e => e.stopPropagation()}
 										>
 											<MoreVertical className="h-4 w-4" />

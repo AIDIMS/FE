@@ -217,9 +217,9 @@ export function PatientForm({ patient, onSubmit, onCancel }: PatientFormProps) {
 							<SelectValue placeholder="Chọn giới tính" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="0">Nam</SelectItem>
-							<SelectItem value="1">Nữ</SelectItem>
-							<SelectItem value="2">Khác</SelectItem>
+							<SelectItem value="Male">Nam</SelectItem>
+							<SelectItem value="Female">Nữ</SelectItem>
+							<SelectItem value="Other">Khác</SelectItem>
 						</SelectContent>
 					</Select>
 				</div>

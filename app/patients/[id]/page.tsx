@@ -280,7 +280,7 @@ export default function PatientDetailPage() {
 								<Table>
 									<TableHeader>
 										<TableRow className="border-b border-gray-200 bg-gray-50/50 hover:bg-transparent">
-											<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
+											<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider pl-6">
 												Ngày khám
 											</TableHead>
 											<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
@@ -292,7 +292,7 @@ export default function PatientDetailPage() {
 											<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
 												Bác sĩ
 											</TableHead>
-											<TableHead className="w-12"></TableHead>
+											<TableHead className="w-12 pr-6"></TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -302,7 +302,7 @@ export default function PatientDetailPage() {
 												className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors group cursor-pointer"
 												onClick={() => router.push(`/visits/${visit.id}`)}
 											>
-												<TableCell className="h-20">
+												<TableCell className="h-20 pl-6">
 													<div className="flex items-center gap-3">
 														<div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
 															<Calendar className="h-5 w-5 text-blue-600" />
@@ -361,7 +361,7 @@ export default function PatientDetailPage() {
 														</div>
 													</div>
 												</TableCell>
-												<TableCell>
+												<TableCell className="pr-6">
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
 															<Button

@@ -5,11 +5,22 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, FileText } from 'lucide-react';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select';
+import { Clock, Users, FileText, Filter } from 'lucide-react';
 import { PatientVisit } from '@/lib/types/patient';
+import { visitService } from '@/lib/api/services/visit.service';
+import { userService } from '@/lib/api';
+import { useAuth } from '@/lib/contexts/auth-context';
+import { UserRole } from '@/lib/types';
 
 interface QueuePatient extends PatientVisit {
-	patientGender: 'male' | 'female' | 'other' | null;
+	patientGender: 'Male' | 'Female' | 'Other' | null;
 	patientDob: string | null;
 	patientPhone: string | null;
 	waitingTimeMinutes: number;
@@ -17,15 +28,18 @@ interface QueuePatient extends PatientVisit {
 
 export default function DoctorQueueDashboard() {
 	const router = useRouter();
+	const { user: currentUser } = useAuth();
 	const [queue, setQueue] = useState<QueuePatient[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [currentTime, setCurrentTime] = useState<Date | null>(null);
+	const [selectedDoctorId, setSelectedDoctorId] = useState<string>('all');
+	const [doctors, setDoctors] = useState<Array<{ id: string; name: string }>>([]);
+
+	const isAdmin = currentUser?.role === UserRole.Admin;
 
 	useEffect(() => {
 		// Initialize time only on client side to avoid hydration mismatch
 		setCurrentTime(new Date());
-
-		loadQueue();
 
 		// Update current time every minute
 		const timer = setInterval(() => {
@@ -35,104 +49,72 @@ export default function DoctorQueueDashboard() {
 		return () => clearInterval(timer);
 	}, []);
 
+	useEffect(() => {
+		if (!currentUser) return;
+
+		if (isAdmin) {
+			loadDoctors();
+		}
+		loadQueue();
+	}, [currentUser, selectedDoctorId]);
+
+	const loadDoctors = async () => {
+		try {
+			const result = await userService.getAll(1, 100);
+			if (result.isSuccess && result.data) {
+				const doctorList = result.data.items
+					.filter(u => u.role === UserRole.Doctor && !u.isDeleted)
+					.map(u => ({
+						id: u.id,
+						name: `${u.firstName} ${u.lastName}`,
+					}));
+				setDoctors(doctorList);
+			}
+		} catch (error) {
+			console.error('Error loading doctors:', error);
+		}
+	};
+
 	const loadQueue = async () => {
+		if (!currentUser) {
+			return;
+		}
+
 		setIsLoading(true);
 		try {
-			// Mock data - sẽ thay thế bằng API call
-			// Query: SELECT * FROM patient_visits pv
-			//        JOIN patients p ON pv.patient_id = p.id
-			//        WHERE pv.status = 'waiting' AND pv.assigned_doctor_id = currentUserId
-			//        ORDER BY pv.created_at ASC
-			await new Promise(resolve => setTimeout(resolve, 500));
+			let result;
 
-			const mockQueue: QueuePatient[] = [
-				{
-					id: 'visit1',
-					patientId: 'p1',
-					patientCode: 'BN001',
-					patientName: 'Nguyễn Văn A',
-					patientGender: 'male',
-					patientDob: '1990-05-15',
-					patientPhone: '0901234567',
-					assignedDoctorId: 'doc1',
-					assignedDoctorName: null,
-					symptoms: 'Đau đầu kéo dài 3 ngày, chóng mặt, buồn nôn. Tiền sử huyết áp cao.',
-					status: 'waiting',
-					createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 phút trước
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					waitingTimeMinutes: 45,
-				},
-				{
-					id: 'visit2',
-					patientId: 'p2',
-					patientCode: 'BN002',
-					patientName: 'Trần Thị B',
-					patientGender: 'female',
-					patientDob: '1985-12-20',
-					patientPhone: '0909876543',
-					assignedDoctorId: 'doc1',
-					assignedDoctorName: null,
-					symptoms: 'Ho khan, đau ngực, sốt nhẹ. Kéo dài 5 ngày.',
-					status: 'waiting',
-					createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 phút trước
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					waitingTimeMinutes: 30,
-				},
-				{
-					id: 'visit3',
-					patientId: 'p3',
-					patientCode: 'BN003',
-					patientName: 'Lê Văn C',
-					patientGender: 'male',
-					patientDob: '1978-03-10',
-					patientPhone: '0912345678',
-					assignedDoctorId: 'doc1',
-					assignedDoctorName: null,
-					symptoms: 'Đau bụng dưới bên phải, buồn nôn. Có tiền sử viêm ruột thừa.',
-					status: 'waiting',
-					createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 phút trước
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					waitingTimeMinutes: 15,
-				},
-				{
-					id: 'visit4',
-					patientId: 'p4',
-					patientCode: 'BN004',
-					patientName: 'Phạm Thị D',
-					patientGender: 'female',
-					patientDob: '1992-08-25',
-					patientPhone: '0918765432',
-					assignedDoctorId: 'doc1',
-					assignedDoctorName: null,
-					symptoms: 'Đau khớp gối, sưng tấy. Khó di chuyển.',
-					status: 'waiting',
-					createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8 phút trước
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					waitingTimeMinutes: 8,
-				},
-			];
+			if (isAdmin) {
+				// Admin: get all visits or filter by selected doctor
+				if (selectedDoctorId === 'all') {
+					result = await visitService.getAll(1, 100);
+				} else {
+					result = await visitService.getByDoctorId(selectedDoctorId, 1, 100);
+				}
+			} else if (currentUser?.id) {
+				// Doctor: get only their assigned visits
+				result = await visitService.getByDoctorId(currentUser.id, 1, 100);
+			}
 
-			setQueue(mockQueue);
+			if (result?.isSuccess && result.data) {
+				// Filter only waiting status and map to QueuePatient
+				const visits = result.data.items
+					.filter(v => v.status?.toLowerCase() === 'waiting' && !v.isDeleted)
+					.map(v => ({
+						...v,
+						patientGender: null,
+						patientDob: null,
+						patientPhone: null,
+						waitingTimeMinutes: Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 60000),
+					})) as QueuePatient[];
+
+				// Sort by created time (oldest first)
+				visits.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+				setQueue(visits);
+			} else {
+				setQueue([]);
+			}
 		} catch (error) {
 			console.error('Error loading queue:', error);
 		} finally {
@@ -158,10 +140,11 @@ export default function DoctorQueueDashboard() {
 		return age;
 	};
 
-	const getGenderLabel = (gender: 'male' | 'female' | 'other' | null) => {
+	const getGenderLabel = (gender: string | null) => {
 		if (!gender) return '';
-		const labels = { male: 'Nam', female: 'Nữ', other: 'Khác' };
-		return labels[gender];
+		const genderLower = gender.toLowerCase();
+		const labels: Record<string, string> = { male: 'Nam', female: 'Nữ', other: 'Khác' };
+		return labels[genderLower] || gender;
 	};
 
 	return (
@@ -247,12 +230,32 @@ export default function DoctorQueueDashboard() {
 					{/* Queue List */}
 					<Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
 						<CardHeader className="border-b border-slate-200 pb-6 bg-gradient-to-r from-slate-50 to-white">
-							<CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-3">
-								<div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
-									<Users className="h-5 w-5 text-blue-700" />
-								</div>
-								Danh sách bệnh nhân chờ khám
-							</CardTitle>
+							<div className="flex items-center justify-between">
+								<CardTitle className="text-xl font-bold text-slate-800 flex items-center gap-3">
+									<div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
+										<Users className="h-5 w-5 text-blue-700" />
+									</div>
+									Danh sách bệnh nhân chờ khám
+								</CardTitle>
+								{isAdmin && (
+									<div className="flex items-center gap-2">
+										<Filter className="h-4 w-4 text-gray-500" />
+										<Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+											<SelectTrigger className="w-[200px]">
+												<SelectValue placeholder="Chọn bác sĩ" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">Tất cả bác sĩ</SelectItem>
+												{doctors.map(doctor => (
+													<SelectItem key={doctor.id} value={doctor.id}>
+														{doctor.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+							</div>
 						</CardHeader>
 						<CardContent className="p-0">
 							{isLoading ? (
@@ -309,10 +312,10 @@ export default function DoctorQueueDashboard() {
 													</div>
 
 													{/* Patient Info - Clean Typography */}
-													<div className="flex-1 grid grid-cols-[2.5fr_1.5fr_3fr_1.2fr] gap-8 items-center">
+													<div className="flex-1 grid grid-cols-[2fr_1fr_4fr_1fr] gap-6 items-center">
 														{/* Name & Code */}
-														<div>
-															<h3 className="text-base font-semibold text-slate-900 mb-1 tracking-tight">
+														<div className="min-w-0">
+															<h3 className="text-base font-semibold text-slate-900 mb-1 tracking-tight truncate">
 																{patient.patientName}
 															</h3>
 															<p className="text-xs text-slate-500 font-mono tracking-wider">
@@ -325,11 +328,11 @@ export default function DoctorQueueDashboard() {
 																{getGenderLabel(patient.patientGender)}
 															</p>
 															{age && <p className="text-xs text-slate-400">{age} tuổi</p>}
-														</div>{' '}
+														</div>
 														{/* Symptoms - Typography Focus */}
-														<div className="border-l border-slate-200 pl-6">
+														<div className="border-l border-slate-200 pl-6 min-w-0">
 															<p className="text-sm text-slate-700 leading-relaxed line-clamp-2">
-																{patient.symptoms}
+																{patient.symptoms || 'Chưa có triệu chứng'}
 															</p>
 														</div>
 														{/* Waiting Time - Minimal Color */}
@@ -344,7 +347,7 @@ export default function DoctorQueueDashboard() {
 																		{waitingMinutes}
 																	</span>
 																	<span className="text-xs text-slate-400 uppercase tracking-wide font-medium">
-																		min
+																		phút
 																	</span>
 																</div>
 																{waitingMinutes >= 30 && (
