@@ -21,10 +21,32 @@ export interface UpdateImagingOrderDto {
 export class ImagingOrderService {
 	async getAll(
 		pageNumber: number = 1,
-		pageSize: number = 10
+		pageSize: number = 10,
+		visitId?: string,
+		patientId?: string,
+		requestingDoctorId?: string,
+		modality?: string,
+		bodyPart?: string,
+		status?: string,
+		fromDate?: string,
+		toDate?: string
 	): Promise<ApiResult<PaginatedResult<ImagingOrder>>> {
+		const params = new URLSearchParams({
+			pageNumber: pageNumber.toString(),
+			pageSize: pageSize.toString(),
+		});
+
+		if (visitId) params.append('visitId', visitId);
+		if (patientId) params.append('patientId', patientId);
+		if (requestingDoctorId) params.append('requestingDoctorId', requestingDoctorId);
+		if (modality) params.append('modality', modality);
+		if (bodyPart) params.append('bodyPart', bodyPart);
+		if (status) params.append('status', status);
+		if (fromDate) params.append('fromDate', fromDate);
+		if (toDate) params.append('toDate', toDate);
+
 		return apiClient.get<PaginatedResult<ImagingOrder>>(
-			`${API_ENDPOINTS.IMAGING_ORDERS.BASE}?pageNumber=${pageNumber}&pageSize=${pageSize}`
+			`${API_ENDPOINTS.IMAGING_ORDERS.BASE}?${params.toString()}`
 		);
 	}
 
@@ -37,9 +59,7 @@ export class ImagingOrderService {
 		pageNumber: number = 1,
 		pageSize: number = 10
 	): Promise<ApiResult<PaginatedResult<ImagingOrder>>> {
-		return apiClient.get<PaginatedResult<ImagingOrder>>(
-			`${API_ENDPOINTS.IMAGING_ORDERS.BY_VISIT(visitId)}?pageNumber=${pageNumber}&pageSize=${pageSize}`
-		);
+		return this.getAll(pageNumber, pageSize, visitId);
 	}
 
 	async create(orderData: CreateImagingOrderDto): Promise<ApiResult<ImagingOrder>> {
@@ -55,7 +75,7 @@ export class ImagingOrderService {
 	}
 
 	async updateStatus(id: string, status: string): Promise<ApiResult<ImagingOrder>> {
-		return apiClient.patch<ImagingOrder>(API_ENDPOINTS.IMAGING_ORDERS.UPDATE_STATUS(id), {
+		return apiClient.patch<ImagingOrder>(API_ENDPOINTS.IMAGING_ORDERS.BY_ID(id), {
 			status,
 		});
 	}

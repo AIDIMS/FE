@@ -8,7 +8,7 @@ import {
 	DropdownMenuTrigger,
 	DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Camera, Plus, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Camera, Plus, MoreVertical, Pencil, Trash2, Eye } from 'lucide-react';
 import { ImagingOrder } from '@/lib/types/patient';
 
 interface ImagingOrdersCardProps {
@@ -16,6 +16,7 @@ interface ImagingOrdersCardProps {
 	onAddOrder: () => void;
 	onEditOrder: (order: ImagingOrder) => void;
 	onDeleteOrder: (order: ImagingOrder) => void;
+	onViewImages?: (order: ImagingOrder) => void;
 	getStatusBadge: (status: string) => React.ReactNode;
 }
 
@@ -24,6 +25,7 @@ export function ImagingOrdersCard({
 	onAddOrder,
 	onEditOrder,
 	onDeleteOrder,
+	onViewImages,
 	getStatusBadge,
 }: ImagingOrdersCardProps) {
 	return (
@@ -102,6 +104,20 @@ export function ImagingOrdersCard({
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end" className="w-36">
+											{onViewImages &&
+												(order.status === 'completed' ||
+													order.status?.toLowerCase() === 'completed') && (
+													<>
+														<DropdownMenuItem
+															onClick={() => onViewImages(order)}
+															className="cursor-pointer text-sm"
+														>
+															<Eye className="mr-2 h-3 w-3" />
+															Xem hình ảnh
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
+													</>
+												)}
 											<DropdownMenuItem
 												onClick={() => onEditOrder(order)}
 												className="cursor-pointer text-sm"

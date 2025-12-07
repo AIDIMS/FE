@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/select';
 import { ImagingOrder } from '@/lib/types/patient';
 import { Loader2 } from 'lucide-react';
+import { userService } from '@/lib/api';
+import { useNotification } from '@/lib/contexts';
+import { NotificationType } from '@/lib/types/notification';
 
 interface ImagingOrderFormProps {
 	visitId: string;
@@ -21,8 +24,19 @@ interface ImagingOrderFormProps {
 	onCancel: () => void;
 }
 
+interface Doctor {
+	id: string;
+	firstName: string;
+	lastName: string;
+	username: string;
+	email: string;
+}
+
 export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: ImagingOrderFormProps) {
+	const { addNotification } = useNotification();
 	const [isLoading, setIsLoading] = useState(false);
+	const [doctors, setDoctors] = useState<Doctor[]>([]);
+	const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
 	const [formData, setFormData] = useState({
 		requestingDoctorId: order?.requestingDoctorId || '',
 		modalityRequested: order?.modalityRequested || '',
@@ -33,40 +47,62 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 
 	const [errors, setErrors] = useState<Record<string, string>>({});
 
-	// Mock data - sẽ được thay thế bằng API call để lấy danh sách bác sĩ
-	const mockDoctors = [
-		{ id: 'doc1', name: 'BS. Nguyễn Văn A' },
-		{ id: 'doc2', name: 'BS. Trần Thị B' },
-		{ id: 'doc3', name: 'BS. Lê Văn C' },
-	];
+	// Load doctors on component mount
+	useEffect(() => {
+		loadDoctors();
+	}, []);
 
-	// Danh sách các loại chụp phổ biến
+	const loadDoctors = async () => {
+		try {
+			setIsLoadingDoctors(true);
+			// Get all users and filter doctors on frontend for now
+			const result = await userService.getAll(1, 100);
+
+			if (result.isSuccess && result.data?.items) {
+				// Filter doctors by role on frontend
+				const doctorList = result.data.items
+					.filter(user => user.role === 1) // UserRole.Doctor = 1
+					.map(user => ({
+						id: user.id,
+						firstName: user.firstName,
+						lastName: user.lastName,
+						username: user.username,
+						email: user.email,
+					}));
+				setDoctors(doctorList);
+			} else {
+				addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+			}
+		} catch (error) {
+			console.error('Error loading doctors:', error);
+			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
+		} finally {
+			setIsLoadingDoctors(false);
+		}
+	};
+
+	// Danh sách các loại chụp phổ biến - match với backend enum
 	const modalityOptions = [
-		{ value: 'CT', label: 'CT Scan' },
+		{ value: 'XRay', label: 'X-Ray' },
+		{ value: 'CTScan', label: 'CT Scan' },
 		{ value: 'MRI', label: 'MRI' },
-		{ value: 'X-Ray', label: 'X-Ray' },
 		{ value: 'Ultrasound', label: 'Siêu âm' },
-		{ value: 'PET', label: 'PET Scan' },
 		{ value: 'Mammography', label: 'Chụp nhũ ảnh' },
-		{ value: 'Fluoroscopy', label: '透視 (Fluoroscopy)' },
-		{ value: 'Nuclear', label: 'Y học hạt nhân' },
+		{ value: 'Fluoroscopy', label: 'Fluoroscopy' },
+		{ value: 'NuclearMedicine', label: 'Y học hạt nhân' },
 	];
 
-	// Danh sách vùng cơ thể phổ biến
+	// Danh sách vùng cơ thể phổ biến - match với backend enum
 	const bodyPartOptions = [
-		'Đầu',
-		'Cổ',
-		'Ngực',
-		'Bụng',
-		'Xương chậu',
-		'Tứ chi trên',
-		'Tứ chi dưới',
-		'Cột sống',
-		'Tim',
-		'Phổi',
-		'Gan',
-		'Thận',
-		'Toàn thân',
+		{ value: 'Head', label: 'Đầu' },
+		{ value: 'Neck', label: 'Cổ' },
+		{ value: 'Chest', label: 'Ngực' },
+		{ value: 'Brain', label: 'Não' },
+		{ value: 'Abdomen', label: 'Bụng' },
+		{ value: 'Pelvis', label: 'Xương chậu' },
+		{ value: 'Extremities', label: 'Tứ chi' },
+		{ value: 'Spine', label: 'Cột sống' },
+		{ value: 'Other', label: 'Khác' },
 	];
 
 	const validateForm = () => {
@@ -143,9 +179,9 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 						<SelectValue placeholder="Chọn bác sĩ chỉ định" />
 					</SelectTrigger>
 					<SelectContent>
-						{mockDoctors.map(doctor => (
+						{doctors.map(doctor => (
 							<SelectItem key={doctor.id} value={doctor.id}>
-								{doctor.name}
+								{doctor.firstName + ' ' + doctor.lastName}
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -211,16 +247,16 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 					<div className="flex flex-wrap gap-2">
 						{bodyPartOptions.map(part => (
 							<button
-								key={part}
+								key={part.value}
 								type="button"
-								onClick={() => handleChange('bodyPartRequested', part)}
+								onClick={() => handleChange('bodyPartRequested', part.value)}
 								className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-									formData.bodyPartRequested === part
+									formData.bodyPartRequested === part.value
 										? 'bg-blue-100 border-blue-300 text-blue-700'
 										: 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
 								}`}
 							>
-								{part}
+								{part.label}
 							</button>
 						))}
 					</div>

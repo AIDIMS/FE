@@ -36,5 +36,12 @@ export const API_ENDPOINTS = {
 	DICOM: {
 		UPLOAD: '/Dicom/upload',
 		BY_ID: (id: string) => `/Dicom/${id}`,
+		BY_ORDER: (orderId: string) => `/Dicom/order/${orderId}`,
+		DOWNLOAD: (instanceId: string) => `/Dicom/download/${instanceId}`,
+		PREVIEW: (instanceId: string) => `/Dicom/preview/${instanceId}`,
+	},
+	AI_ANALYSIS: {
+		BY_INSTANCE: (instanceId: string) => `/AiAnalysis/instance/${instanceId}`,
+		FINDINGS: (analysisId: string) => `/AiAnalysis/${analysisId}/findings`,
 	},
 } as const;

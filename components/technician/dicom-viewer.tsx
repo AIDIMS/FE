@@ -33,9 +33,12 @@ import DicomInfoPanel from './dicom-info-panel';
 import DicomNotes, { Note } from './dicom-notes';
 import DicomAnnotationsList from './dicom-annotations-list';
 
+import { AiFinding, AiAnalysis } from '@/lib/api/services/ai-analysis.service';
+
 export interface DicomViewerProps {
 	file: File;
 	onClose: () => void;
+	aiAnalysis?: AiAnalysis | null;
 }
 
 export interface DicomMetadata {
@@ -69,8 +72,9 @@ const WINDOW_LEVEL_PRESETS = {
 	default: [{ name: 'Default', window: 400, level: 50 }],
 };
 
-export default function DicomViewer({ file, onClose }: DicomViewerProps) {
+export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerProps) {
 	const elementRef = useRef<HTMLDivElement>(null);
+	const cleanupRef = useRef<(() => void) | null>(null);
 	const renderingEngineId = 'technicianPreviewEngine';
 	const viewportId = 'PREVIEW_STACK';
 	const toolGroupId = 'previewToolGroup';
@@ -83,11 +87,12 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 	const [showInfo, setShowInfo] = useState(true);
 	const [activeTool, setActiveTool] = useState<string | null>(null);
 
-	interface Annotation {
+	interface AnnotationItem {
 		annotationUID: string;
 		metadata?: {
 			toolName?: string;
 			label?: string;
+			isAiAnnotation?: boolean;
 		};
 		toolName?: string;
 		data?: {
@@ -95,7 +100,7 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 			label?: string;
 		};
 	}
-	const [annotations, setAnnotations] = useState<Annotation[]>([]);
+	const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
 	const [showAnnotations, setShowAnnotations] = useState(true);
 
 	const [notes, setNotes] = useState<Note[]>([]);
@@ -106,9 +111,10 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 
 	useEffect(() => {
 		const objectURL: string | null = null;
+		const element = elementRef.current; // Store element reference for cleanup
 
 		const run = async () => {
-			if (!elementRef.current) return;
+			if (!element) return;
 
 			try {
 				// Khởi tạo CornerstoneJS
@@ -149,7 +155,7 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 				const viewportInput = {
 					viewportId,
 					type: Enums.ViewportType.STACK,
-					element: elementRef.current as HTMLDivElement,
+					element: element as HTMLDivElement,
 				};
 
 				renderingEngine.enableElement(viewportInput);
@@ -217,11 +223,62 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 						],
 					});
 
+					// Enable RectangleROI tool to display annotations (set as enabled for visibility)
+					toolGroup.setToolEnabled(RectangleROITool.toolName);
+					console.log('✅ RectangleROI tool ENABLED for displaying annotations');
+
 					// Gán tool group cho viewport
 					toolGroup.addViewport(viewportId, renderingEngineId);
+
+					// Enable annotation rendering and disable statistics display
+					toolGroup.setToolConfiguration(RectangleROITool.toolName, {
+						drawHandles: true,
+						drawHandlesOnHover: true,
+						hideHandlesIfMoving: false,
+						preventHandleOutsideImage: true,
+						// Disable statistics calculation and display
+						calculateStats: false,
+						showTextBox: true, // Show label text box
+						displayText: ['label'], // Only show label, not stats
+					});
 				}
 
-				// Annotations will be handled by polling in useEffect
+				// Set up event listeners for annotation changes
+				const onAnnotationModified = () => {
+					console.log('🎯 Annotation modified event triggered');
+					updateAnnotations();
+					// Force a render
+					setTimeout(() => {
+						const renderingEngine = getRenderingEngine(renderingEngineId);
+						const viewport = renderingEngine?.getViewport(viewportId);
+						if (viewport) {
+							viewport.render();
+						}
+					}, 0);
+				};
+
+				const onAnnotationAdded = () => {
+					console.log('🎯 Annotation added event triggered');
+					updateAnnotations();
+					// Force a render
+					setTimeout(() => {
+						const renderingEngine = getRenderingEngine(renderingEngineId);
+						const viewport = renderingEngine?.getViewport(viewportId);
+						if (viewport) {
+							viewport.render();
+						}
+					}, 0);
+				};
+
+				// Listen for annotation events
+				element.addEventListener(ToolsEnums.Events.ANNOTATION_MODIFIED, onAnnotationModified);
+				element.addEventListener(ToolsEnums.Events.ANNOTATION_ADDED, onAnnotationAdded);
+
+				// Store listeners for cleanup
+				cleanupRef.current = () => {
+					element.removeEventListener(ToolsEnums.Events.ANNOTATION_MODIFIED, onAnnotationModified);
+					element.removeEventListener(ToolsEnums.Events.ANNOTATION_ADDED, onAnnotationAdded);
+				};
 
 				// Render và reset camera
 				viewport.render();
@@ -276,6 +333,25 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 				const camera = viewport.getCamera();
 				setZoomLevel(camera.parallelScale || 1);
 
+				// Add annotation event listeners for render updates
+				const handleAnnotationModified = () => {
+					console.log('🎯 Annotation modified event triggered');
+					setTimeout(() => {
+						viewport.render();
+					}, 50);
+				};
+
+				const handleAnnotationAdded = () => {
+					console.log('🎯 Annotation added event triggered');
+					setTimeout(() => {
+						viewport.render();
+					}, 50);
+				};
+
+				// Listen to annotation events
+				element.addEventListener('cornerstoneAnnotationModified', handleAnnotationModified);
+				element.addEventListener('cornerstoneAnnotationAdded', handleAnnotationAdded);
+
 				setIsReady(true);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : 'Lỗi không xác định';
@@ -287,6 +363,18 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 
 		// Cleanup khi component unmount hoặc file thay đổi
 		return () => {
+			// Cleanup event listeners
+			if (cleanupRef.current) {
+				cleanupRef.current();
+				cleanupRef.current = null;
+			}
+
+			// Remove annotation event listeners
+			if (element) {
+				element.removeEventListener('cornerstoneAnnotationModified', () => {});
+				element.removeEventListener('cornerstoneAnnotationAdded', () => {});
+			}
+
 			const engine = getRenderingEngine(renderingEngineId);
 			if (engine) {
 				engine.destroy();
@@ -310,22 +398,22 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 
 		try {
 			// Get all annotations for the element
-			const allAnnotations: Annotation[] = [];
+			const allAnnotations: AnnotationItem[] = [];
 			const element = elementRef.current;
 
 			// Get Rectangle ROI annotations
-			let rectAnnList: Annotation[] = [];
+			let rectAnnList: AnnotationItem[] = [];
 			try {
 				const rectAnnotations = annotation.state.getAnnotations(RectangleROITool.toolName, element);
 				if (rectAnnotations && Array.isArray(rectAnnotations)) {
-					rectAnnList = rectAnnotations as Annotation[];
+					rectAnnList = rectAnnotations as AnnotationItem[];
 				} else if (rectAnnotations && typeof rectAnnotations === 'object') {
 					// If it's an object, get all values
 					Object.values(rectAnnotations).forEach((ann: unknown) => {
 						if (Array.isArray(ann)) {
-							rectAnnList.push(...(ann as Annotation[]));
+							rectAnnList.push(...(ann as AnnotationItem[]));
 						} else if (ann) {
-							rectAnnList.push(ann as Annotation);
+							rectAnnList.push(ann as AnnotationItem);
 						}
 					});
 				}
@@ -341,14 +429,14 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 					element
 				);
 				if (arrowAnnotations && Array.isArray(arrowAnnotations)) {
-					allAnnotations.push(...(arrowAnnotations as Annotation[]));
+					allAnnotations.push(...(arrowAnnotations as AnnotationItem[]));
 				} else if (arrowAnnotations && typeof arrowAnnotations === 'object') {
 					// If it's an object, get all values
 					Object.values(arrowAnnotations).forEach((ann: unknown) => {
 						if (Array.isArray(ann)) {
-							allAnnotations.push(...(ann as Annotation[]));
+							allAnnotations.push(...(ann as AnnotationItem[]));
 						} else if (ann) {
-							allAnnotations.push(ann as Annotation);
+							allAnnotations.push(ann as AnnotationItem);
 						}
 					});
 				}
@@ -504,6 +592,313 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 			return () => element.removeEventListener('click', handleClick);
 		}
 	}, [isReady, isNoteMode, createNote]);
+
+	// Render AI findings as annotations
+	useEffect(() => {
+		if (!isReady || !aiAnalysis?.findings || !elementRef.current) return;
+
+		const renderAiFindings = async () => {
+			try {
+				const element = elementRef.current;
+				if (!element) return;
+
+				console.log('🎯 AI Analysis:', aiAnalysis);
+				console.log('🎯 AI Findings:', aiAnalysis.findings);
+				aiAnalysis.findings.forEach((finding, index) => {
+					console.log(`🎯 Finding ${index}:`, {
+						id: finding.id,
+						label: finding.label,
+						confidence: finding.confidenceScore,
+						coordinates: {
+							xMin: finding.xMin,
+							yMin: finding.yMin,
+							xMax: finding.xMax,
+							yMax: finding.yMax,
+						},
+					});
+				});
+
+				// Remove existing AI annotations
+				const existingAnnotations = annotation.state.getAnnotations(
+					RectangleROITool.toolName,
+					element
+				);
+				if (existingAnnotations) {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					let annotationsToRemove: any[] = [];
+
+					if (Array.isArray(existingAnnotations)) {
+						annotationsToRemove = existingAnnotations.filter(
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(ann: any) => ann.metadata?.isAiAnnotation
+						);
+					} else {
+						// Handle case where annotations are returned as object
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const allAnns = Object.values(existingAnnotations).flat() as any[];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						annotationsToRemove = allAnns.filter((ann: any) => ann.metadata?.isAiAnnotation);
+					}
+
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					annotationsToRemove.forEach((ann: any) => {
+						if (ann.annotationUID) {
+							annotation.state.removeAnnotation(ann.annotationUID);
+						}
+					});
+				}
+
+				// Add AI findings as rectangle annotations
+				aiAnalysis.findings.forEach((finding: AiFinding) => {
+					let coordinates: { xMin: number; yMin: number; xMax: number; yMax: number } | null = null;
+
+					// Check if we have direct coordinates
+					if (
+						finding.xMin !== undefined &&
+						finding.yMin !== undefined &&
+						finding.xMax !== undefined &&
+						finding.yMax !== undefined
+					) {
+						coordinates = {
+							xMin: finding.xMin,
+							yMin: finding.yMin,
+							xMax: finding.xMax,
+							yMax: finding.yMax,
+						};
+						console.log('🎯 Using direct coordinates:', coordinates);
+					}
+					// Check if we have boundingBox format
+					else if (finding.boundingBox) {
+						coordinates = {
+							xMin: finding.boundingBox.x,
+							yMin: finding.boundingBox.y,
+							xMax: finding.boundingBox.x + finding.boundingBox.width,
+							yMax: finding.boundingBox.y + finding.boundingBox.height,
+						};
+						console.log('🎯 Using boundingBox format:', coordinates);
+					}
+					// Generate mock coordinates for testing (remove this in production)
+					else {
+						const index = aiAnalysis.findings.indexOf(finding);
+						coordinates = {
+							xMin: 0.1 + index * 0.1,
+							yMin: 0.1 + index * 0.1,
+							xMax: 0.3 + index * 0.1,
+							yMax: 0.3 + index * 0.1,
+						};
+						console.log('🎯 Using mock coordinates for testing:', coordinates);
+					}
+
+					if (coordinates) {
+						// Get viewport to convert coordinates
+						const renderingEngine = getRenderingEngine(renderingEngineId);
+						const viewport = renderingEngine?.getViewport(viewportId) as Types.IStackViewport;
+						if (!viewport) return;
+
+						// Get current image ID for the annotation
+						const imageIds = viewport.getImageIds();
+						const currentImageIndex = viewport.getCurrentImageIdIndex();
+						const currentImageId = imageIds[currentImageIndex];
+
+						if (!currentImageId) {
+							console.warn('🚨 No image ID available for annotation');
+							return;
+						}
+
+						console.log('🎯 Raw coordinates from AI:', coordinates);
+
+						// Get the actual image being displayed
+						const image = viewport.getCornerstoneImage();
+						const imageWidth = image.width;
+						const imageHeight = image.height;
+
+						// Get image metadata for coordinate transformation
+						const imageData = viewport.getImageData();
+
+						console.log('🎯 Image dimensions:', { imageWidth, imageHeight });
+						console.log('🎯 Image metadata:', imageData.metadata);
+
+						// AI coordinates are in image pixel space [0, imageWidth] x [0, imageHeight]
+						// Convert to world coordinates using DICOM spacing and origin
+						const spacing = imageData.spacing || [1, 1, 1];
+						const origin = imageData.origin || [0, 0, 0];
+						const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+						console.log('🎯 Image origin:', origin);
+						console.log('🎯 Image spacing:', spacing);
+						console.log('🎯 Image direction:', direction);
+
+						// Transform pixel coordinates to world coordinates using proper DICOM transformation
+						// World = Origin + Direction * (PixelIndex * Spacing)
+						const transformPixelToWorld = (px: number, py: number): Types.Point3 => {
+							// Apply direction matrix and spacing
+							const x = origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
+							const y = origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
+							const z = origin[2] || 0;
+
+							return [x, y, z];
+						};
+
+						const worldCoord1 = transformPixelToWorld(coordinates.xMin, coordinates.yMin);
+						const worldCoord2 = transformPixelToWorld(coordinates.xMax, coordinates.yMax);
+
+						// Ensure correct ordering (top-left to bottom-right)
+						const finalCoords = {
+							x1: Math.min(worldCoord1[0], worldCoord2[0]),
+							y1: Math.min(worldCoord1[1], worldCoord2[1]),
+							x2: Math.max(worldCoord1[0], worldCoord2[0]),
+							y2: Math.max(worldCoord1[1], worldCoord2[1]),
+						};
+
+						console.log('🎯 World coord 1:', worldCoord1);
+						console.log('🎯 World coord 2:', worldCoord2);
+						console.log('🎯 Final world coords (ordered):', finalCoords);
+
+						// Determine color based on finding type
+						let annotationColor = '#00FF00'; // Default green
+						const labelLower = finding.label.toLowerCase();
+						if (labelLower.includes('effusion')) {
+							annotationColor = '#FFFF00'; // Yellow for pleural effusion
+						} else if (labelLower.includes('opacity')) {
+							annotationColor = '#FFA500'; // Orange for lung opacity
+						} else if (labelLower.includes('fibrosis')) {
+							annotationColor = '#FF0000'; // Red for pulmonary fibrosis
+						}
+
+						console.log('🎨 Annotation color:', annotationColor, 'for', finding.label);
+
+						// Create rectangle annotation data with proper structure for RectangleROI
+						// RectangleROI expects 4 corner points in world coordinates
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const rectangleAnnotation: any = {
+							annotationUID: `ai-finding-${finding.id}`,
+							metadata: {
+								isAiAnnotation: true,
+								toolName: RectangleROITool.toolName,
+								label: finding.label,
+								confidence: finding.confidenceScore,
+								referencedImageId: currentImageId, // Critical: Tell Cornerstone which image this annotation belongs to
+							},
+							data: {
+								handles: {
+									points: [
+										[finalCoords.x1, finalCoords.y1, 0] as Types.Point3, // Top-left
+										[finalCoords.x2, finalCoords.y1, 0] as Types.Point3, // Top-right
+										[finalCoords.x2, finalCoords.y2, 0] as Types.Point3, // Bottom-right
+										[finalCoords.x1, finalCoords.y2, 0] as Types.Point3, // Bottom-left
+									] as Types.Point3[],
+									activeHandleIndex: null,
+									textBox: {
+										hasMoved: false,
+										worldPosition: [finalCoords.x1, finalCoords.y1 - 10, 0] as Types.Point3,
+									},
+								},
+								label: `${finding.label} (${Math.round(finding.confidenceScore * 100)}%)`,
+								cachedStats: {}, // Empty to prevent stats calculation
+							},
+							style: {
+								color: annotationColor,
+								lineWidth: 2,
+								lineDash: '', // Solid line
+								textBox: {
+									fontFamily: 'Arial, sans-serif',
+									fontSize: '14px',
+									color: annotationColor,
+									background: 'rgba(0, 0, 0, 0.7)',
+									padding: 4,
+								},
+							},
+							isVisible: true,
+							highlighted: false,
+							invalidated: false,
+						};
+
+						console.log(
+							'🎯 Creating annotation with final coords:',
+							finalCoords,
+							rectangleAnnotation
+						);
+
+						// Add annotation to state
+						annotation.state.addAnnotation(rectangleAnnotation, element);
+
+						console.log('✅ Annotation added successfully');
+
+						// Force invalidate annotation to ensure it renders
+						try {
+							const allAnnotationsAfterAdd = annotation.state.getAnnotations(
+								RectangleROITool.toolName,
+								element
+							);
+							console.log('🔍 Annotations after adding this one:', allAnnotationsAfterAdd.length);
+						} catch (error) {
+							console.warn('Error checking annotations after add:', error);
+						}
+					} else {
+						console.warn('🚨 No coordinates found for finding:', finding);
+					}
+				});
+
+				// Trigger render after all annotations are added
+				const renderingEngine = getRenderingEngine(renderingEngineId);
+				const viewport = renderingEngine?.getViewport(viewportId);
+				if (viewport) {
+					// Invalidate and render the viewport
+					viewport.render();
+					console.log('🎯 Viewport rendered after adding all annotations');
+
+					// Force the tool to be active temporarily to ensure rendering
+					const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
+					if (toolGroup) {
+						// Temporarily set tool to enabled for better visibility
+						toolGroup.setToolEnabled(RectangleROITool.toolName);
+
+						// Trigger a viewport render immediately
+						viewport.render();
+						console.log('🎯 Final render after enabling RectangleROI tool');
+
+						// Verify tool is still enabled
+						const toolState = toolGroup.getToolInstance(RectangleROITool.toolName);
+						console.log(
+							'✅ RectangleROI tool state confirmed:',
+							toolState ? 'available' : 'missing'
+						);
+					}
+
+					// Additional render calls to ensure annotations appear
+					setTimeout(() => {
+						try {
+							// Check if annotations are in the state
+							const allAnnotations = annotation.state.getAnnotations(
+								RectangleROITool.toolName,
+								element
+							);
+							console.log('🎯 Final annotations in state:', allAnnotations);
+
+							// Trigger multiple renders to ensure visibility
+							viewport.render();
+							updateAnnotations(); // Update the local state
+
+							// Additional invalidation
+							setTimeout(() => {
+								// Force annotation rendering by invalidating the viewport
+								viewport.resetCamera({ resetPan: false, resetZoom: false });
+								viewport.render();
+								console.log('🎯 Final render completed with viewport reset');
+							}, 100);
+						} catch (error) {
+							console.error('Error in final annotation check:', error);
+						}
+					}, 500);
+				}
+			} catch (error) {
+				console.error('Error rendering AI findings:', error);
+			}
+		};
+
+		// Delay to ensure viewport is ready
+		setTimeout(renderAiFindings, 500);
+	}, [isReady, aiAnalysis, renderingEngineId, viewportId, updateAnnotations]);
 
 	// Handle note dragging
 	const handleNoteMouseDown = useCallback(
@@ -889,6 +1284,32 @@ export default function DicomViewer({ file, onClose }: DicomViewerProps) {
 						windowLevel={windowLevel}
 						zoomLevel={zoomLevel}
 					/>
+				)}
+
+				{/* AI Annotations Debug */}
+				{isReady && aiAnalysis?.findings && (
+					<div className="absolute top-4 right-4 bg-black/80 backdrop-blur-md rounded-lg p-3 border border-slate-700/50 shadow-2xl z-30">
+						<div className="text-xs text-slate-300 mb-2">
+							<span className="text-green-400">AI Annotations:</span> {aiAnalysis.findings.length}
+						</div>
+						<button
+							onClick={() => {
+								const engine = getRenderingEngine(renderingEngineId);
+								const viewport = engine?.getViewport(viewportId);
+								if (viewport && elementRef.current) {
+									const allAnns = annotation.state.getAnnotations(
+										RectangleROITool.toolName,
+										elementRef.current
+									);
+									console.log('🔍 Debug - Current annotations:', allAnns);
+									viewport.render();
+								}
+							}}
+							className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+						>
+							Debug Annotations
+						</button>
+					</div>
 				)}
 
 				{/* Annotations List Panel */}

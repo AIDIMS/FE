@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import { PatientInfoCard } from '@/components/visits/patient-info-card';
 import { PreviousVisitsCard } from '@/components/visits/previous-visits-card';
 import { ExaminationNoteCard } from '@/components/visits/examination-note-card';
 import { ImagingOrdersCard } from '@/components/visits/imaging-orders-card';
-import { visitService } from '@/lib/api';
+import { DicomFilesCard } from '@/components/visits/dicom-files-card';
+import { visitService, imagingOrderService } from '@/lib/api';
 import { useNotification } from '@/lib/contexts';
 import { NotificationType } from '@/lib/types/notification';
 
@@ -62,12 +63,51 @@ export default function VisitDetailPage() {
 	const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
 	const [selectedOrder, setSelectedOrder] = useState<ImagingOrder | null>(null);
 	const [isSavingNote, setIsSavingNote] = useState(false);
+	const [selectedOrderForImages, setSelectedOrderForImages] = useState<ImagingOrder | null>(null);
 
-	useEffect(() => {
-		loadVisitData();
-	}, [visitId]);
+	const loadPreviousVisits = useCallback(
+		async (patientId: string) => {
+			try {
+				const result = await visitService.getAll(1, 10);
 
-	const loadVisitData = async () => {
+				if (result.isSuccess && result.data?.items) {
+					const doneVisits = result.data.items
+						.filter(v => v.patientId === patientId && v.status === 'Done' && v.id !== visitId)
+						.map(v => ({
+							id: v.id,
+							visit_date: v.createdAt,
+							symptoms: v.symptoms || '',
+							diagnosis: '',
+							status: v.status,
+						}))
+						.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
+
+					setPreviousVisits(doneVisits);
+				}
+			} catch (error) {
+				console.error('Error loading previous visits:', error);
+			}
+		},
+		[visitId]
+	);
+
+	const loadImagingOrders = useCallback(async (visitId: string) => {
+		try {
+			const result = await imagingOrderService.getByVisitId(visitId);
+
+			if (result.isSuccess && result.data?.items) {
+				console.log('Imaging orders loaded:', result.data.items);
+				result.data.items.forEach(order => {
+					console.log(`Order ${order.id} status:`, order.status);
+				});
+				setImagingOrders(result.data.items);
+			}
+		} catch (error) {
+			console.error('Error loading imaging orders:', error);
+		}
+	}, []);
+
+	const loadVisitData = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const result = await visitService.getById(visitId);
@@ -100,7 +140,8 @@ export default function VisitDetailPage() {
 				// Load previous visits for this patient with status = "Done"
 				await loadPreviousVisits(visitData.patientId);
 
-				setImagingOrders([]);
+				// Load imaging orders for this visit
+				await loadImagingOrders(visitId);
 			} else {
 				addNotification(
 					NotificationType.ERROR,
@@ -114,30 +155,11 @@ export default function VisitDetailPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, [visitId, addNotification, loadPreviousVisits, loadImagingOrders]);
 
-	const loadPreviousVisits = async (patientId: string) => {
-		try {
-			const result = await visitService.getAll(1, 10);
-
-			if (result.isSuccess && result.data?.items) {
-				const doneVisits = result.data.items
-					.filter(v => v.patientId === patientId && v.status === 'Done' && v.id !== visitId)
-					.map(v => ({
-						id: v.id,
-						visit_date: v.createdAt,
-						symptoms: v.symptoms || '',
-						diagnosis: '',
-						status: v.status,
-					}))
-					.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
-
-				setPreviousVisits(doneVisits);
-			}
-		} catch (error) {
-			console.error('Error loading previous visits:', error);
-		}
-	};
+	useEffect(() => {
+		loadVisitData();
+	}, [loadVisitData]);
 
 	const handleAddOrder = () => {
 		setSelectedOrder(null);
@@ -149,48 +171,90 @@ export default function VisitDetailPage() {
 		setIsOrderFormOpen(true);
 	};
 
-	const handleDeleteOrder = (order: ImagingOrder) => {
+	const handleDeleteOrder = async (order: ImagingOrder) => {
 		if (confirm('Bạn có chắc chắn muốn xóa chỉ định này?')) {
-			setImagingOrders(prev => prev.filter(o => o.id !== order.id));
+			try {
+				const result = await imagingOrderService.delete(order.id);
+				if (result.isSuccess) {
+					setImagingOrders(prev => prev.filter(o => o.id !== order.id));
+					addNotification(NotificationType.SUCCESS, 'Thành công', 'Đã xóa chỉ định chụp chiếu');
+				} else {
+					addNotification(
+						NotificationType.ERROR,
+						'Lỗi',
+						result.message || 'Không thể xóa chỉ định'
+					);
+				}
+			} catch (error) {
+				console.error('Error deleting imaging order:', error);
+				addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi xóa chỉ định');
+			}
 		}
 	};
 
 	const handleSubmitOrder = async (data: Partial<ImagingOrder>) => {
-		await new Promise(resolve => setTimeout(resolve, 800));
+		try {
+			if (selectedOrder) {
+				// Update existing order
+				const updateData = {
+					modalityRequested: data.modalityRequested,
+					bodyPartRequested: data.bodyPartRequested,
+					reasonForStudy: data.reasonForStudy,
+					status: data.status,
+				};
 
-		if (selectedOrder) {
-			// Update existing order
-			setImagingOrders(prev =>
-				prev.map(o =>
-					o.id === selectedOrder.id ? { ...o, ...data, updated_at: new Date().toISOString() } : o
-				)
-			);
-		} else {
-			// Create new order
-			const newOrder: ImagingOrder = {
-				id: Math.random().toString(36).substr(2, 9),
-				visitId: visitId,
-				patientId: visit?.patientId || '',
-				patientName: visit?.patientName || '',
-				requestingDoctorId: data.requestingDoctorId || '',
-				requestingDoctorName: visit?.doctorName || '',
-				modalityRequested: data.modalityRequested || '',
-				bodyPartRequested: data.bodyPartRequested || '',
-				reasonForStudy: data.reasonForStudy || null,
-				status: data.status || 'pending',
-				createdAt: new Date().toISOString(),
-				createdBy: data.requestingDoctorId || null,
-				updatedAt: null,
-				updatedBy: null,
-				isDeleted: false,
-				deletedAt: null,
-				deletedBy: null,
-			};
-			setImagingOrders(prev => [newOrder, ...prev]);
+				const result = await imagingOrderService.update(selectedOrder.id, updateData);
+
+				if (result.isSuccess && result.data) {
+					setImagingOrders(prev => prev.map(o => (o.id === selectedOrder.id ? result.data! : o)));
+					addNotification(
+						NotificationType.SUCCESS,
+						'Thành công',
+						'Đã cập nhật chỉ định chụp chiếu'
+					);
+				} else {
+					addNotification(
+						NotificationType.ERROR,
+						'Lỗi',
+						result.message || 'Không thể cập nhật chỉ định'
+					);
+					return;
+				}
+			} else {
+				// Create new order
+				const createData = {
+					visitId: visitId,
+					requestingDoctorId: data.requestingDoctorId || '',
+					modalityRequested: data.modalityRequested || '',
+					bodyPartRequested: data.bodyPartRequested || '',
+					reasonForStudy: data.reasonForStudy || null,
+				};
+
+				const result = await imagingOrderService.create(createData);
+
+				if (result.isSuccess && result.data) {
+					setImagingOrders(prev => [result.data!, ...prev]);
+					addNotification(NotificationType.SUCCESS, 'Thành công', 'Đã tạo chỉ định chụp chiếu mới');
+				} else {
+					addNotification(
+						NotificationType.ERROR,
+						'Lỗi',
+						result.message || 'Không thể tạo chỉ định'
+					);
+					return;
+				}
+			}
+
+			setIsOrderFormOpen(false);
+			setSelectedOrder(null);
+		} catch (error) {
+			console.error('Error submitting imaging order:', error);
+			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi lưu chỉ định');
 		}
+	};
 
-		setIsOrderFormOpen(false);
-		setSelectedOrder(null);
+	const handleViewImages = (order: ImagingOrder) => {
+		setSelectedOrderForImages(order);
 	};
 
 	const handleSaveExaminationNote = async () => {
@@ -208,13 +272,18 @@ export default function VisitDetailPage() {
 	};
 
 	const getStatusBadge = (status: string) => {
+		// Normalize status to lowercase for comparison
+		const normalizedStatus = status?.toLowerCase();
+
 		const statusConfig = {
 			pending: { label: 'Chờ thực hiện', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
 			in_progress: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+			inprogress: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800 border-blue-200' },
 			completed: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800 border-green-200' },
 			cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-800 border-red-200' },
 		};
-		const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+		const config =
+			statusConfig[normalizedStatus as keyof typeof statusConfig] || statusConfig.pending;
 		return (
 			<span
 				className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold border ${config.color}`}
@@ -303,14 +372,18 @@ export default function VisitDetailPage() {
 							/>
 						</div>
 						{/* Right Column - Imaging Orders */}
-						<div className="lg:col-span-4">
+						<div className="lg:col-span-4 space-y-6">
 							<ImagingOrdersCard
 								imagingOrders={imagingOrders}
 								onAddOrder={handleAddOrder}
 								onEditOrder={handleEditOrder}
 								onDeleteOrder={handleDeleteOrder}
+								onViewImages={handleViewImages}
 								getStatusBadge={getStatusBadge}
 							/>
+
+							{/* DICOM Files Card - Show when an order is selected */}
+							{selectedOrderForImages && <DicomFilesCard orderId={selectedOrderForImages.id} />}
 						</div>
 					</div>
 
