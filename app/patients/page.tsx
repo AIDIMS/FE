@@ -13,10 +13,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { PatientForm } from '@/components/patients/patient-form';
 import { PatientTable } from '@/components/patients/patient-table';
-import { Patient, PatientWithDetails } from '@/lib/types/patient';
+import { Patient } from '@/lib/types/patient';
 import { patientService } from '@/lib/api/services/patient.service';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
-import { Plus, Search, Filter, Users } from 'lucide-react';
+import { Plus, Search, Filter, Users, Check } from 'lucide-react';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function PatientsPage() {
 	const [patients, setPatients] = useState<Patient[]>([]);
@@ -25,7 +32,12 @@ export default function PatientsPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Filter states
+	const [selectedGender, setSelectedGender] = useState<'all' | 'Male' | 'Female' | 'Other'>('all');
+	const [selectedAgeRange, setSelectedAgeRange] = useState<'all' | 'child' | 'adult' | 'senior'>(
+		'all'
+	);
 
 	useEffect(() => {
 		loadPatients();
@@ -66,6 +78,42 @@ export default function PatientsPage() {
 		setFilteredPatients(filtered);
 	}, [searchQuery, patients]);
 
+	// Apply filters
+	useEffect(() => {
+		let filtered = patients;
+
+		// Apply search filter
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase();
+			filtered = filtered.filter(
+				patient =>
+					patient.patientCode.toLowerCase().includes(query) ||
+					patient.fullName.toLowerCase().includes(query) ||
+					patient.phoneNumber?.toLowerCase().includes(query) ||
+					patient.address?.toLowerCase().includes(query)
+			);
+		}
+
+		// Apply gender filter
+		if (selectedGender !== 'all') {
+			filtered = filtered.filter(patient => patient.gender === selectedGender);
+		}
+
+		// Apply age range filter
+		if (selectedAgeRange !== 'all') {
+			filtered = filtered.filter(patient => {
+				if (!patient.dateOfBirth) return false;
+				const age = new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear();
+				if (selectedAgeRange === 'child') return age < 18;
+				if (selectedAgeRange === 'adult') return age >= 18 && age < 60;
+				if (selectedAgeRange === 'senior') return age >= 60;
+				return true;
+			});
+		}
+
+		setFilteredPatients(filtered);
+	}, [searchQuery, patients, selectedGender, selectedAgeRange]);
+
 	const handleAddNew = () => {
 		setSelectedPatient(null);
 		setIsFormOpen(true);
@@ -103,9 +151,7 @@ export default function PatientsPage() {
 			| 'deleted_by'
 		>
 	) => {
-		setIsSubmitting(true);
 		try {
-			// Mock save - thay thế bằng API call
 			await new Promise(resolve => setTimeout(resolve, 1000));
 
 			if (selectedPatient) {
@@ -135,8 +181,6 @@ export default function PatientsPage() {
 		} catch (error) {
 			console.error('Error saving patient:', error);
 			alert('Có lỗi xảy ra khi lưu bệnh nhân');
-		} finally {
-			setIsSubmitting(false);
 		}
 	};
 
@@ -254,13 +298,92 @@ export default function PatientsPage() {
 							className="pl-10 bg-white border-gray-300 focus:border-blue-600 focus:ring-blue-600 h-10 shadow-sm"
 						/>
 					</div>
-					<Button
-						variant="outline"
-						className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
-					>
-						<Filter className="h-4 w-4 mr-2" />
-						Bộ lọc
-					</Button>
+
+					<div className="flex gap-2">
+						{/* Gender Filter */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Giới tính
+									{selectedGender !== 'all' && (
+										<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+											1
+										</span>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem onClick={() => setSelectedGender('all')}>
+									{selectedGender === 'all' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedGender !== 'all' && <div className="w-4 mr-2" />}
+									Tất cả
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setSelectedGender('Male')}>
+									{selectedGender === 'Male' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedGender !== 'Male' && <div className="w-4 mr-2" />}
+									Nam
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedGender('Female')}>
+									{selectedGender === 'Female' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedGender !== 'Female' && <div className="w-4 mr-2" />}
+									Nữ
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedGender('Other')}>
+									{selectedGender === 'Other' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedGender !== 'Other' && <div className="w-4 mr-2" />}
+									Khác
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+
+						{/* Age Range Filter */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Độ tuổi
+									{selectedAgeRange !== 'all' && (
+										<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+											1
+										</span>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem onClick={() => setSelectedAgeRange('all')}>
+									{selectedAgeRange === 'all' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedAgeRange !== 'all' && <div className="w-4 mr-2" />}
+									Tất cả
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setSelectedAgeRange('child')}>
+									{selectedAgeRange === 'child' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedAgeRange !== 'child' && <div className="w-4 mr-2" />}
+									Trẻ em (&lt; 18 tuổi)
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedAgeRange('adult')}>
+									{selectedAgeRange === 'adult' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedAgeRange !== 'adult' && <div className="w-4 mr-2" />}
+									Người lớn (18-59 tuổi)
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedAgeRange('senior')}>
+									{selectedAgeRange === 'senior' && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedAgeRange !== 'senior' && <div className="w-4 mr-2" />}
+									Cao tuổi (≥ 60 tuổi)
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				</div>
 
 				{/* Patients Table */}

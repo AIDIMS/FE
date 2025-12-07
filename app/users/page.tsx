@@ -12,32 +12,20 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-	Users,
-	Plus,
-	Search,
-	Pencil,
-	Trash2,
-	UserCheck,
-	UserX,
-	MoreVertical,
-	Filter,
-} from 'lucide-react';
+import { Users, Plus, Search, UserCheck, UserX, Filter, Check } from 'lucide-react';
 import { userService } from '@/lib/api';
-import { UserListDto, UserRole } from '@/lib/types';
+import { UserListDto, UserRole, Department } from '@/lib/types';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserFormDialog } from '@/components/users/user-form-dialog';
 import { DeleteUserDialog } from '@/components/users/delete-user-dialog';
 import { UserTable } from '@/components/users/user-table';
-import { getDepartmentName, getRoleName } from '@/lib/utils/role';
 
 export default function UsersPage() {
 	const { user: currentUser } = useAuth();
 	const [users, setUsers] = useState<UserListDto[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState('');
-	const [pageNumber, setPageNumber] = useState(1);
-	const [totalPages, setTotalPages] = useState(1);
+	const pageNumber = 1;
 	const [totalCount, setTotalCount] = useState(0);
 
 	// Dialog states
@@ -45,6 +33,11 @@ export default function UsersPage() {
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [selectedUser, setSelectedUser] = useState<UserListDto | null>(null);
+
+	// Filter states
+	const [selectedRole, setSelectedRole] = useState<UserRole | 'all'>('all');
+	const [selectedDepartment, setSelectedDepartment] = useState<Department | 'all'>('all');
+	const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
 	// Check if current user is admin
 	const isAdmin = currentUser?.role === UserRole.Admin;
@@ -55,7 +48,6 @@ export default function UsersPage() {
 
 			if (result.isSuccess && result.data) {
 				setUsers(result.data.items);
-				setTotalPages(result.data.totalPages);
 				setTotalCount(result.data.totalCount);
 			}
 		} catch (error) {
@@ -67,6 +59,7 @@ export default function UsersPage() {
 
 	useEffect(() => {
 		loadUsers();
+		 
 	}, [pageNumber]);
 
 	const handleCreateSuccess = () => {
@@ -99,12 +92,21 @@ export default function UsersPage() {
 	// Filter users by search query
 	const filteredUsers = users.filter(user => {
 		const query = searchQuery.toLowerCase();
-		return (
+		const matchesSearch =
 			user.firstName.toLowerCase().includes(query) ||
 			user.lastName.toLowerCase().includes(query) ||
 			user.email.toLowerCase().includes(query) ||
-			user.username.toLowerCase().includes(query)
-		);
+			user.username.toLowerCase().includes(query);
+
+		const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+		const matchesDepartment =
+			selectedDepartment === 'all' || user.department === selectedDepartment;
+		const matchesStatus =
+			selectedStatus === 'all' ||
+			(selectedStatus === 'active' && !user.isDeleted) ||
+			(selectedStatus === 'inactive' && user.isDeleted);
+
+		return matchesSearch && matchesRole && matchesDepartment && matchesStatus;
 	});
 
 	if (!isAdmin) {
@@ -202,7 +204,6 @@ export default function UsersPage() {
 						</Card>
 					</div>
 				</div>
-
 				{/* Search and Filter Bar */}
 				<div className="mb-6 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
 					<div className="relative flex-1 max-w-md w-full">
@@ -214,15 +215,157 @@ export default function UsersPage() {
 							className="pl-10 bg-white border-gray-300 focus:border-blue-600 focus:ring-blue-600 h-10 shadow-sm"
 						/>
 					</div>
-					<Button
-						variant="outline"
-						className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
-					>
-						<Filter className="h-4 w-4 mr-2" />
-						Bộ lọc
-					</Button>
-				</div>
 
+					<div className="flex gap-2">
+						{/* Role Filter */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Vai trò
+									{selectedRole !== 'all' && (
+										<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+											1
+										</span>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem onClick={() => setSelectedRole('all')}>
+									{selectedRole === 'all' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedRole !== 'all' && <div className="w-4 mr-2" />}
+									Tất cả
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setSelectedRole(UserRole.Admin)}>
+									{selectedRole === UserRole.Admin && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedRole !== UserRole.Admin && <div className="w-4 mr-2" />}
+									Quản trị viên
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedRole(UserRole.Doctor)}>
+									{selectedRole === UserRole.Doctor && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedRole !== UserRole.Doctor && <div className="w-4 mr-2" />}
+									Bác sĩ
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedRole(UserRole.Technician)}>
+									{selectedRole === UserRole.Technician && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedRole !== UserRole.Technician && <div className="w-4 mr-2" />}
+									Kỹ thuật viên
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedRole(UserRole.Receptionist)}>
+									{selectedRole === UserRole.Receptionist && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedRole !== UserRole.Receptionist && <div className="w-4 mr-2" />}
+									Lễ tân
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+
+						{/* Department Filter */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Phòng ban
+									{selectedDepartment !== 'all' && (
+										<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+											1
+										</span>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem onClick={() => setSelectedDepartment('all')}>
+									{selectedDepartment === 'all' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedDepartment !== 'all' && <div className="w-4 mr-2" />}
+									Tất cả
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setSelectedDepartment(Department.Administration)}>
+									{selectedDepartment === Department.Administration && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedDepartment !== Department.Administration && <div className="w-4 mr-2" />}
+									Hành chính
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedDepartment(Department.Pulmonology)}>
+									{selectedDepartment === Department.Pulmonology && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedDepartment !== Department.Pulmonology && <div className="w-4 mr-2" />}
+									Phổi
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedDepartment(Department.Radiology)}>
+									{selectedDepartment === Department.Radiology && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedDepartment !== Department.Radiology && <div className="w-4 mr-2" />}
+									X-quang/CT
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedDepartment(Department.LungFunction)}>
+									{selectedDepartment === Department.LungFunction && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedDepartment !== Department.LungFunction && <div className="w-4 mr-2" />}
+									Chức năng hô hấp
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+
+						{/* Status Filter */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant="outline"
+									className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white h-10 shadow-sm"
+								>
+									<Filter className="h-4 w-4 mr-2" />
+									Trạng thái
+									{selectedStatus !== 'all' && (
+										<span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+											1
+										</span>
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-56">
+								<DropdownMenuItem onClick={() => setSelectedStatus('all')}>
+									{selectedStatus === 'all' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedStatus !== 'all' && <div className="w-4 mr-2" />}
+									Tất cả
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem onClick={() => setSelectedStatus('active')}>
+									{selectedStatus === 'active' && <Check className="h-4 w-4 mr-2 text-blue-600" />}
+									{selectedStatus !== 'active' && <div className="w-4 mr-2" />}
+									<UserCheck className="h-4 w-4 mr-2 text-green-600" />
+									Đang hoạt động
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setSelectedStatus('inactive')}>
+									{selectedStatus === 'inactive' && (
+										<Check className="h-4 w-4 mr-2 text-blue-600" />
+									)}
+									{selectedStatus !== 'inactive' && <div className="w-4 mr-2" />}
+									<UserX className="h-4 w-4 mr-2 text-red-600" />
+									Vô hiệu hóa
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>{' '}
 				{/* Users Table */}
 				<Card className="bg-white border-gray-200 shadow-md overflow-hidden">
 					<CardHeader className="border-b border-gray-200 bg-white">

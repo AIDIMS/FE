@@ -37,18 +37,13 @@ export interface ChangePasswordDto {
 export enum UserRole {
 	Admin = 0,
 	Doctor = 1,
-	Radiologist = 2,
+	Receptionist = 2,
 	Technician = 3,
 }
 
 export enum Department {
-	Radiology = 0,
-	Cardiology = 1,
-	Neurology = 2,
-	Oncology = 3,
-	Pediatrics = 4,
-	Emergency = 5,
-	Orthopedics = 6,
-	GeneralMedicine = 7,
-	PACS = 8,
+	Administration = 0,
+	Pulmonology = 1,
+	Radiology = 2,
+	LungFunction = 3,
 }

@@ -4,7 +4,7 @@ const getRoleName = (role: UserRole): string => {
 	const roleNames = {
 		[UserRole.Admin]: 'Quản trị viên',
 		[UserRole.Doctor]: 'Bác sĩ',
-		[UserRole.Radiologist]: 'Chuyên viên X-quang',
+		[UserRole.Receptionist]: 'Lễ tân',
 		[UserRole.Technician]: 'Kỹ thuật viên',
 	};
 	return roleNames[role] || 'Không xác định';
@@ -12,15 +12,10 @@ const getRoleName = (role: UserRole): string => {
 
 const getDepartmentName = (dept: Department): string => {
 	const deptNames = {
-		[Department.Radiology]: 'X-quang',
-		[Department.Cardiology]: 'Tim mạch',
-		[Department.Neurology]: 'Thần kinh',
-		[Department.Oncology]: 'Ung bướu',
-		[Department.Pediatrics]: 'Nhi khoa',
-		[Department.Emergency]: 'Cấp cứu',
-		[Department.Orthopedics]: 'Chấn thương chỉnh hình',
-		[Department.GeneralMedicine]: 'Nội tổng quát',
-		[Department.PACS]: 'Quản lý hình ảnh y tế (PACS)',
+		[Department.Administration]: 'Hành chính',
+		[Department.Pulmonology]: 'Phổi',
+		[Department.Radiology]: 'X-quang/CT',
+		[Department.LungFunction]: 'Chức năng hô hấp',
 	};
 	return deptNames[dept] || 'Không xác định';
 };

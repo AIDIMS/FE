@@ -48,7 +48,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 		lastName: '',
 		phoneNumber: '',
 		role: UserRole.Doctor,
-		department: Department.Radiology,
+		department: Department.Administration,
 	});
 
 	const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +77,7 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 				lastName: '',
 				phoneNumber: '',
 				role: UserRole.Doctor,
-				department: Department.Radiology,
+				department: Department.Administration,
 			});
 		}
 		setError('');
@@ -266,10 +266,8 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 									<SelectContent>
 										<SelectItem value={UserRole.Admin.toString()}>Quản trị viên</SelectItem>
 										<SelectItem value={UserRole.Doctor.toString()}>Bác sĩ</SelectItem>
-										<SelectItem value={UserRole.Radiologist.toString()}>
-											Chuyên viên X-quang
-										</SelectItem>
 										<SelectItem value={UserRole.Technician.toString()}>Kỹ thuật viên</SelectItem>
+										<SelectItem value={UserRole.Receptionist.toString()}>Lễ tân</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -286,20 +284,11 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value={Department.Radiology.toString()}>X-quang</SelectItem>
-										<SelectItem value={Department.Cardiology.toString()}>Tim mạch</SelectItem>
-										<SelectItem value={Department.Neurology.toString()}>Thần kinh</SelectItem>
-										<SelectItem value={Department.Oncology.toString()}>Ung thư</SelectItem>
-										<SelectItem value={Department.Pediatrics.toString()}>Nhi khoa</SelectItem>
-										<SelectItem value={Department.Emergency.toString()}>Cấp cứu</SelectItem>
-										<SelectItem value={Department.Orthopedics.toString()}>
-											Chấn thương chỉnh hình
-										</SelectItem>
-										<SelectItem value={Department.GeneralMedicine.toString()}>
-											Y học tổng quát
-										</SelectItem>
-										<SelectItem value={Department.PACS.toString()}>
-											Quản lý hình ảnh y tế (PACS)
+										<SelectItem value={Department.Administration.toString()}>Hành chính</SelectItem>
+										<SelectItem value={Department.Pulmonology.toString()}>Phổi</SelectItem>
+										<SelectItem value={Department.Radiology.toString()}>X-quang/CT</SelectItem>
+										<SelectItem value={Department.LungFunction.toString()}>
+											Chức năng hô hấp
 										</SelectItem>
 									</SelectContent>
 								</Select>

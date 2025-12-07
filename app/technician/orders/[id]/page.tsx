@@ -140,12 +140,10 @@ export default function TechnicianOrderDetail() {
 					accessionNumber: order?.id || 'MA_CHI_DINH_ORDER_123',
 				};
 
-				// Tạo FormData để gửi file và metadata
 				const formData = new FormData();
 				formData.append('dicom_file', file);
 				formData.append('metadata', JSON.stringify(metadata));
 
-				// Cập nhật progress trước khi gọi API
 				setUploadedFiles(prev =>
 					prev.map(f => {
 						if (f.id === fileId) {
@@ -155,17 +153,14 @@ export default function TechnicianOrderDetail() {
 					})
 				);
 
-				// Gọi API để xử lý DICOM
-				const response = await fetch('http://localhost:5000/process_dicom', {
+				const response = await fetch(`${process.env.NEXT_PUBLIC_DICOM_PROCESS_URL}/process_dicom`, {
 					method: 'POST',
 					body: formData,
 				});
-
 				if (!response.ok) {
 					throw new Error(`API error: ${response.status} ${response.statusText}`);
 				}
 
-				// Cập nhật progress khi nhận được response
 				setUploadedFiles(prev =>
 					prev.map(f => {
 						if (f.id === fileId) {
@@ -185,7 +180,6 @@ export default function TechnicianOrderDetail() {
 					type: 'application/dicom',
 				});
 
-				// Cập nhật file với thông tin đã xử lý
 				setUploadedFiles(prev =>
 					prev.map(f => {
 						if (f.id === fileId) {
