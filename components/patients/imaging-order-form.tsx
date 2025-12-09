@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,11 +46,6 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 
 	const [errors, setErrors] = useState<Record<string, string>>({});
 
-	// Load doctors on component mount
-	useEffect(() => {
-		loadDoctors();
-	}, [loadDoctors]);
-
 	const loadDoctors = useCallback(async () => {
 		try {
 			// Get all users and filter doctors on frontend for now
@@ -75,7 +70,13 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 			console.error('Error loading doctors:', error);
 			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
 		}
-	}, [addNotification]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// Load doctors on component mount
+	useEffect(() => {
+		loadDoctors();
+	}, [loadDoctors]);
 
 	// Danh sách các loại chụp phổ biến - match với backend enum
 	const modalityOptions = [
