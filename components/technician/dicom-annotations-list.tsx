@@ -18,35 +18,46 @@ interface Annotation {
 	};
 }
 
+interface BoundingBox {
+	id: string;
+	label: string;
+	confidence: number;
+	type: 'ai' | 'manual';
+	color: string;
+}
+
 interface DicomAnnotationsListProps {
 	show: boolean;
 	annotations: Annotation[];
 	notes: Note[];
+	boundingBoxes?: BoundingBox[];
 	showAnnotations: boolean;
 	onToggleShowAnnotations: () => void;
 	onDeleteAnnotation: (annotationUID: string) => void;
 	onDeleteNote: (id: string) => void;
+	onDeleteBoundingBox?: (id: string) => void;
 }
 
 export default function DicomAnnotationsList({
 	show,
 	annotations,
 	notes,
+	boundingBoxes = [],
 	showAnnotations,
 	onToggleShowAnnotations,
 	onDeleteAnnotation,
 	onDeleteNote,
+	onDeleteBoundingBox,
 }: DicomAnnotationsListProps) {
-	if (!show || (annotations.length === 0 && notes.length === 0)) return null;
+	const totalCount = annotations.length + notes.length + boundingBoxes.length;
+	if (!show || totalCount === 0) return null;
 
 	return (
 		<div className="absolute bottom-20 left-4 bg-black/80 backdrop-blur-md rounded-lg p-4 border border-slate-700/50 shadow-2xl z-20 max-w-sm pointer-events-auto">
 			<div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
 				<div className="flex items-center gap-2">
 					<Edit2 className="h-4 w-4 text-green-400" />
-					<h3 className="text-sm font-semibold text-white">
-						Annotations ({annotations.length + notes.length})
-					</h3>
+					<h3 className="text-sm font-semibold text-white">Annotations ({totalCount})</h3>
 				</div>
 				<Button
 					onClick={onToggleShowAnnotations}
@@ -59,6 +70,40 @@ export default function DicomAnnotationsList({
 			</div>
 			{showAnnotations && (
 				<div className="space-y-2 max-h-60 overflow-y-auto">
+					{/* Bounding Boxes (AI Findings & Manual) */}
+					{boundingBoxes.map(bbox => (
+						<div
+							key={bbox.id}
+							className="flex items-center justify-between p-2 bg-slate-800/50 rounded border border-slate-700/50 hover:bg-slate-700/50 transition-colors"
+						>
+							<div className="flex-1 min-w-0">
+								<div className="flex items-center gap-1.5 mb-1">
+									<Square className="h-3 w-3" style={{ color: bbox.color }} />
+									<span className="text-xs text-slate-400">
+										{bbox.type === 'ai' ? 'AI Finding' : 'Manual Finding'}
+									</span>
+									{bbox.type === 'ai' && (
+										<span className="text-xs text-slate-500">
+											{Math.round(bbox.confidence * 100)}%
+										</span>
+									)}
+								</div>
+								<div className="text-xs text-slate-300 truncate">{bbox.label}</div>
+							</div>
+							{onDeleteBoundingBox && (
+								<Button
+									onClick={() => onDeleteBoundingBox(bbox.id)}
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/20 ml-2 flex-shrink-0"
+									title="Xóa bounding box"
+								>
+									<Trash2 className="h-3 w-3" />
+								</Button>
+							)}
+						</div>
+					))}
+
 					{/* Notes */}
 					{notes.map(note => (
 						<div

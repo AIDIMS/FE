@@ -109,6 +109,34 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 	const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
 	const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+	// AI findings overlay state
+	interface AiBoundingBox {
+		id: string;
+		label: string;
+		confidence: number;
+		canvasX: number;
+		canvasY: number;
+		canvasWidth: number;
+		canvasHeight: number;
+		color: string;
+		isEdited?: boolean; // Track if bbox has been manually edited
+		type: 'ai' | 'manual'; // Distinguish AI-generated vs manually drawn
+	}
+	const [aiBoundingBoxes, setAiBoundingBoxes] = useState<AiBoundingBox[]>([]);
+	const [selectedBboxId, setSelectedBboxId] = useState<string | null>(null);
+	const [isDraggingBbox, setIsDraggingBbox] = useState(false);
+	const [isResizingBbox, setIsResizingBbox] = useState<string | null>(null); // 'nw', 'ne', 'sw', 'se' for corners
+	const [bboxDragStart, setBboxDragStart] = useState<{ x: number; y: number } | null>(null);
+
+	// Manual bbox drawing mode
+	const [isDrawingBbox, setIsDrawingBbox] = useState(false);
+	const [bboxDrawStart, setBboxDrawStart] = useState<{ x: number; y: number } | null>(null);
+	const [currentDrawingBbox, setCurrentDrawingBbox] = useState<AiBoundingBox | null>(null);
+
+	// Label editing for manual bboxes
+	const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+	const [editingLabelText, setEditingLabelText] = useState<string>('');
+
 	useEffect(() => {
 		const objectURL: string | null = null;
 		const element = elementRef.current; // Store element reference for cleanup
@@ -225,7 +253,6 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 
 					// Enable RectangleROI tool to display annotations (set as enabled for visibility)
 					toolGroup.setToolEnabled(RectangleROITool.toolName);
-					console.log('✅ RectangleROI tool ENABLED for displaying annotations');
 
 					// Gán tool group cho viewport
 					toolGroup.addViewport(viewportId, renderingEngineId);
@@ -390,6 +417,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 				URL.revokeObjectURL(objectURL);
 			}
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [file]);
 
 	// Function to update annotations list and label positions
@@ -593,7 +621,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 		}
 	}, [isReady, isNoteMode, createNote]);
 
-	// Render AI findings as annotations
+	// Render AI findings as SVG overlay (bypass CornerstoneJS annotations that keep getting rejected)
 	useEffect(() => {
 		if (!isReady || !aiAnalysis?.findings || !elementRef.current) return;
 
@@ -602,53 +630,14 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 				const element = elementRef.current;
 				if (!element) return;
 
-				console.log('🎯 AI Analysis:', aiAnalysis);
-				console.log('🎯 AI Findings:', aiAnalysis.findings);
-				aiAnalysis.findings.forEach((finding, index) => {
-					console.log(`🎯 Finding ${index}:`, {
-						id: finding.id,
-						label: finding.label,
-						confidence: finding.confidenceScore,
-						coordinates: {
-							xMin: finding.xMin,
-							yMin: finding.yMin,
-							xMax: finding.xMax,
-							yMax: finding.yMax,
-						},
-					});
-				});
+				const boundingBoxes: AiBoundingBox[] = [];
 
-				// Remove existing AI annotations
-				const existingAnnotations = annotation.state.getAnnotations(
-					RectangleROITool.toolName,
-					element
-				);
-				if (existingAnnotations) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					let annotationsToRemove: any[] = [];
+				// Get viewport for coordinate conversion
+				const renderingEngine = getRenderingEngine(renderingEngineId);
+				const viewport = renderingEngine?.getViewport(viewportId) as Types.IStackViewport;
+				if (!viewport) return;
 
-					if (Array.isArray(existingAnnotations)) {
-						annotationsToRemove = existingAnnotations.filter(
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ann: any) => ann.metadata?.isAiAnnotation
-						);
-					} else {
-						// Handle case where annotations are returned as object
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const allAnns = Object.values(existingAnnotations).flat() as any[];
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						annotationsToRemove = allAnns.filter((ann: any) => ann.metadata?.isAiAnnotation);
-					}
-
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					annotationsToRemove.forEach((ann: any) => {
-						if (ann.annotationUID) {
-							annotation.state.removeAnnotation(ann.annotationUID);
-						}
-					});
-				}
-
-				// Add AI findings as rectangle annotations
+				// Convert AI findings to canvas bounding boxes for SVG overlay
 				aiAnalysis.findings.forEach((finding: AiFinding) => {
 					let coordinates: { xMin: number; yMin: number; xMax: number; yMax: number } | null = null;
 
@@ -665,7 +654,6 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 							xMax: finding.xMax,
 							yMax: finding.yMax,
 						};
-						console.log('🎯 Using direct coordinates:', coordinates);
 					}
 					// Check if we have boundingBox format
 					else if (finding.boundingBox) {
@@ -675,222 +663,88 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 							xMax: finding.boundingBox.x + finding.boundingBox.width,
 							yMax: finding.boundingBox.y + finding.boundingBox.height,
 						};
-						console.log('🎯 Using boundingBox format:', coordinates);
-					}
-					// Generate mock coordinates for testing (remove this in production)
-					else {
-						const index = aiAnalysis.findings.indexOf(finding);
-						coordinates = {
-							xMin: 0.1 + index * 0.1,
-							yMin: 0.1 + index * 0.1,
-							xMax: 0.3 + index * 0.1,
-							yMax: 0.3 + index * 0.1,
-						};
-						console.log('🎯 Using mock coordinates for testing:', coordinates);
 					}
 
-					if (coordinates) {
-						// Get viewport to convert coordinates
-						const renderingEngine = getRenderingEngine(renderingEngineId);
-						const viewport = renderingEngine?.getViewport(viewportId) as Types.IStackViewport;
-						if (!viewport) return;
+					if (!coordinates) return;
 
-						// Get current image ID for the annotation
-						const imageIds = viewport.getImageIds();
-						const currentImageIndex = viewport.getCurrentImageIdIndex();
-						const currentImageId = imageIds[currentImageIndex];
+					// Get the actual image being displayed
+					const image = viewport.getCornerstoneImage();
+					const imageWidth = image.width;
+					const imageHeight = image.height;
 
-						if (!currentImageId) {
-							console.warn('🚨 No image ID available for annotation');
-							return;
-						}
+					// Check if coordinates are normalized (0-1) or absolute pixels
+					const isNormalized = coordinates.xMax <= 1 && coordinates.yMax <= 1;
 
-						console.log('🎯 Raw coordinates from AI:', coordinates);
-
-						// Get the actual image being displayed
-						const image = viewport.getCornerstoneImage();
-						const imageWidth = image.width;
-						const imageHeight = image.height;
-
-						// Get image metadata for coordinate transformation
-						const imageData = viewport.getImageData();
-
-						console.log('🎯 Image dimensions:', { imageWidth, imageHeight });
-						console.log('🎯 Image metadata:', imageData.metadata);
-
-						// AI coordinates are in image pixel space [0, imageWidth] x [0, imageHeight]
-						// Convert to world coordinates using DICOM spacing and origin
-						const spacing = imageData.spacing || [1, 1, 1];
-						const origin = imageData.origin || [0, 0, 0];
-						const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
-
-						console.log('🎯 Image origin:', origin);
-						console.log('🎯 Image spacing:', spacing);
-						console.log('🎯 Image direction:', direction);
-
-						// Transform pixel coordinates to world coordinates using proper DICOM transformation
-						// World = Origin + Direction * (PixelIndex * Spacing)
-						const transformPixelToWorld = (px: number, py: number): Types.Point3 => {
-							// Apply direction matrix and spacing
-							const x = origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
-							const y = origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
-							const z = origin[2] || 0;
-
-							return [x, y, z];
+					// Convert normalized coordinates to pixel coordinates if needed
+					let pixelCoords = { ...coordinates };
+					if (isNormalized) {
+						pixelCoords = {
+							xMin: coordinates.xMin * imageWidth,
+							yMin: coordinates.yMin * imageHeight,
+							xMax: coordinates.xMax * imageWidth,
+							yMax: coordinates.yMax * imageHeight,
 						};
-
-						const worldCoord1 = transformPixelToWorld(coordinates.xMin, coordinates.yMin);
-						const worldCoord2 = transformPixelToWorld(coordinates.xMax, coordinates.yMax);
-
-						// Ensure correct ordering (top-left to bottom-right)
-						const finalCoords = {
-							x1: Math.min(worldCoord1[0], worldCoord2[0]),
-							y1: Math.min(worldCoord1[1], worldCoord2[1]),
-							x2: Math.max(worldCoord1[0], worldCoord2[0]),
-							y2: Math.max(worldCoord1[1], worldCoord2[1]),
-						};
-
-						console.log('🎯 World coord 1:', worldCoord1);
-						console.log('🎯 World coord 2:', worldCoord2);
-						console.log('🎯 Final world coords (ordered):', finalCoords);
-
-						// Determine color based on finding type
-						let annotationColor = '#00FF00'; // Default green
-						const labelLower = finding.label.toLowerCase();
-						if (labelLower.includes('effusion')) {
-							annotationColor = '#FFFF00'; // Yellow for pleural effusion
-						} else if (labelLower.includes('opacity')) {
-							annotationColor = '#FFA500'; // Orange for lung opacity
-						} else if (labelLower.includes('fibrosis')) {
-							annotationColor = '#FF0000'; // Red for pulmonary fibrosis
-						}
-
-						console.log('🎨 Annotation color:', annotationColor, 'for', finding.label);
-
-						// Create rectangle annotation data with proper structure for RectangleROI
-						// RectangleROI expects 4 corner points in world coordinates
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const rectangleAnnotation: any = {
-							annotationUID: `ai-finding-${finding.id}`,
-							metadata: {
-								isAiAnnotation: true,
-								toolName: RectangleROITool.toolName,
-								label: finding.label,
-								confidence: finding.confidenceScore,
-								referencedImageId: currentImageId, // Critical: Tell Cornerstone which image this annotation belongs to
-							},
-							data: {
-								handles: {
-									points: [
-										[finalCoords.x1, finalCoords.y1, 0] as Types.Point3, // Top-left
-										[finalCoords.x2, finalCoords.y1, 0] as Types.Point3, // Top-right
-										[finalCoords.x2, finalCoords.y2, 0] as Types.Point3, // Bottom-right
-										[finalCoords.x1, finalCoords.y2, 0] as Types.Point3, // Bottom-left
-									] as Types.Point3[],
-									activeHandleIndex: null,
-									textBox: {
-										hasMoved: false,
-										worldPosition: [finalCoords.x1, finalCoords.y1 - 10, 0] as Types.Point3,
-									},
-								},
-								label: `${finding.label} (${Math.round(finding.confidenceScore * 100)}%)`,
-								cachedStats: {}, // Empty to prevent stats calculation
-							},
-							style: {
-								color: annotationColor,
-								lineWidth: 2,
-								lineDash: '', // Solid line
-								textBox: {
-									fontFamily: 'Arial, sans-serif',
-									fontSize: '14px',
-									color: annotationColor,
-									background: 'rgba(0, 0, 0, 0.7)',
-									padding: 4,
-								},
-							},
-							isVisible: true,
-							highlighted: false,
-							invalidated: false,
-						};
-
-						console.log(
-							'🎯 Creating annotation with final coords:',
-							finalCoords,
-							rectangleAnnotation
-						);
-
-						// Add annotation to state
-						annotation.state.addAnnotation(rectangleAnnotation, element);
-
-						console.log('✅ Annotation added successfully');
-
-						// Force invalidate annotation to ensure it renders
-						try {
-							const allAnnotationsAfterAdd = annotation.state.getAnnotations(
-								RectangleROITool.toolName,
-								element
-							);
-							console.log('🔍 Annotations after adding this one:', allAnnotationsAfterAdd.length);
-						} catch (error) {
-							console.warn('Error checking annotations after add:', error);
-						}
-					} else {
-						console.warn('🚨 No coordinates found for finding:', finding);
 					}
+
+					// Get image data for coordinate transformation
+					const imageData = viewport.getImageData();
+					const spacing = imageData.spacing || [1, 1, 1];
+					const origin = imageData.origin || [0, 0, 0];
+					const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+					// Convert image pixel to world coordinates first
+					const imagePixelToWorld = (px: number, py: number): Types.Point3 => {
+						const worldX =
+							origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
+						const worldY =
+							origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
+						const worldZ =
+							origin[2] + direction[6] * px * spacing[0] + direction[7] * py * spacing[1];
+						return [worldX, worldY, worldZ];
+					};
+
+					// Convert to world coords
+					const worldTopLeft = imagePixelToWorld(pixelCoords.xMin, pixelCoords.yMin);
+					const worldBottomRight = imagePixelToWorld(pixelCoords.xMax, pixelCoords.yMax);
+
+					// Convert world coords to canvas coords using viewport (accounts for zoom/pan)
+					const canvasTopLeft = viewport.worldToCanvas(worldTopLeft);
+					const canvasBottomRight = viewport.worldToCanvas(worldBottomRight);
+
+					const canvasX = canvasTopLeft[0];
+					const canvasY = canvasTopLeft[1];
+					const canvasBoxWidth = canvasBottomRight[0] - canvasTopLeft[0];
+					const canvasBoxHeight = canvasBottomRight[1] - canvasTopLeft[1];
+
+					// Determine color based on finding type
+					let boxColor = '#00FF00'; // Default green
+					const labelLower = finding.label.toLowerCase();
+					if (labelLower.includes('effusion')) {
+						boxColor = '#FFFF00'; // Yellow
+					} else if (labelLower.includes('opacity')) {
+						boxColor = '#FFA500'; // Orange
+					} else if (labelLower.includes('fibrosis')) {
+						boxColor = '#FF0000'; // Red
+					} else if (labelLower.includes('cardiomegaly')) {
+						boxColor = '#00FFFF'; // Cyan for heart
+					}
+
+					// Add to bounding boxes array for SVG overlay
+					boundingBoxes.push({
+						id: finding.id,
+						label: finding.label,
+						confidence: finding.confidenceScore,
+						canvasX,
+						canvasY,
+						canvasWidth: canvasBoxWidth,
+						canvasHeight: canvasBoxHeight,
+						color: boxColor,
+						type: 'ai',
+					});
 				});
 
-				// Trigger render after all annotations are added
-				const renderingEngine = getRenderingEngine(renderingEngineId);
-				const viewport = renderingEngine?.getViewport(viewportId);
-				if (viewport) {
-					// Invalidate and render the viewport
-					viewport.render();
-					console.log('🎯 Viewport rendered after adding all annotations');
-
-					// Force the tool to be active temporarily to ensure rendering
-					const toolGroup = ToolGroupManager.getToolGroup(toolGroupId);
-					if (toolGroup) {
-						// Temporarily set tool to enabled for better visibility
-						toolGroup.setToolEnabled(RectangleROITool.toolName);
-
-						// Trigger a viewport render immediately
-						viewport.render();
-						console.log('🎯 Final render after enabling RectangleROI tool');
-
-						// Verify tool is still enabled
-						const toolState = toolGroup.getToolInstance(RectangleROITool.toolName);
-						console.log(
-							'✅ RectangleROI tool state confirmed:',
-							toolState ? 'available' : 'missing'
-						);
-					}
-
-					// Additional render calls to ensure annotations appear
-					setTimeout(() => {
-						try {
-							// Check if annotations are in the state
-							const allAnnotations = annotation.state.getAnnotations(
-								RectangleROITool.toolName,
-								element
-							);
-							console.log('🎯 Final annotations in state:', allAnnotations);
-
-							// Trigger multiple renders to ensure visibility
-							viewport.render();
-							updateAnnotations(); // Update the local state
-
-							// Additional invalidation
-							setTimeout(() => {
-								// Force annotation rendering by invalidating the viewport
-								viewport.resetCamera({ resetPan: false, resetZoom: false });
-								viewport.render();
-								console.log('🎯 Final render completed with viewport reset');
-							}, 100);
-						} catch (error) {
-							console.error('Error in final annotation check:', error);
-						}
-					}, 500);
-				}
+				// Update state with bounding boxes
+				setAiBoundingBoxes(boundingBoxes);
 			} catch (error) {
 				console.error('Error rendering AI findings:', error);
 			}
@@ -899,6 +753,398 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 		// Delay to ensure viewport is ready
 		setTimeout(renderAiFindings, 500);
 	}, [isReady, aiAnalysis, renderingEngineId, viewportId, updateAnnotations]);
+
+	// Update bounding boxes on viewport camera changes (zoom/pan)
+	useEffect(() => {
+		if (!isReady || !aiAnalysis?.findings || aiBoundingBoxes.length === 0) return;
+
+		const handleCameraModified = () => {
+			// Re-render bounding boxes when camera changes
+			const engine = getRenderingEngine(renderingEngineId);
+			const viewport = engine?.getViewport(viewportId) as Types.IStackViewport;
+			if (!viewport || !aiAnalysis?.findings) return;
+
+			const updatedBoxes = aiBoundingBoxes.map(box => {
+				// Find the corresponding finding
+				const finding = aiAnalysis.findings.find(f => f.id === box.id);
+				if (!finding) return box;
+
+				// Recalculate coordinates from original finding data
+				let coordinates: { xMin: number; yMin: number; xMax: number; yMax: number } | null = null;
+
+				if (
+					finding.xMin !== undefined &&
+					finding.yMin !== undefined &&
+					finding.xMax !== undefined &&
+					finding.yMax !== undefined
+				) {
+					coordinates = {
+						xMin: finding.xMin,
+						yMin: finding.yMin,
+						xMax: finding.xMax,
+						yMax: finding.yMax,
+					};
+				} else if (finding.boundingBox) {
+					coordinates = {
+						xMin: finding.boundingBox.x,
+						yMin: finding.boundingBox.y,
+						xMax: finding.boundingBox.x + finding.boundingBox.width,
+						yMax: finding.boundingBox.y + finding.boundingBox.height,
+					};
+				}
+
+				if (!coordinates) return box;
+
+				const image = viewport.getCornerstoneImage();
+				const imageWidth = image.width;
+				const imageHeight = image.height;
+
+				const isNormalized = coordinates.xMax <= 1 && coordinates.yMax <= 1;
+				let pixelCoords = { ...coordinates };
+				if (isNormalized) {
+					pixelCoords = {
+						xMin: coordinates.xMin * imageWidth,
+						yMin: coordinates.yMin * imageHeight,
+						xMax: coordinates.xMax * imageWidth,
+						yMax: coordinates.yMax * imageHeight,
+					};
+				}
+
+				const imageData = viewport.getImageData();
+				const spacing = imageData.spacing || [1, 1, 1];
+				const origin = imageData.origin || [0, 0, 0];
+				const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+				const imagePixelToWorld = (px: number, py: number): Types.Point3 => {
+					const worldX =
+						origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
+					const worldY =
+						origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
+					const worldZ =
+						origin[2] + direction[6] * px * spacing[0] + direction[7] * py * spacing[1];
+					return [worldX, worldY, worldZ];
+				};
+
+				const worldTopLeft = imagePixelToWorld(pixelCoords.xMin, pixelCoords.yMin);
+				const worldBottomRight = imagePixelToWorld(pixelCoords.xMax, pixelCoords.yMax);
+
+				const canvasTopLeft = viewport.worldToCanvas(worldTopLeft);
+				const canvasBottomRight = viewport.worldToCanvas(worldBottomRight);
+
+				return {
+					...box,
+					canvasX: canvasTopLeft[0],
+					canvasY: canvasTopLeft[1],
+					canvasWidth: canvasBottomRight[0] - canvasTopLeft[0],
+					canvasHeight: canvasBottomRight[1] - canvasTopLeft[1],
+				};
+			});
+
+			setAiBoundingBoxes(updatedBoxes);
+		};
+
+		const element = elementRef.current;
+		if (element) {
+			element.addEventListener(Enums.Events.CAMERA_MODIFIED as string, handleCameraModified);
+			return () => {
+				element.removeEventListener(Enums.Events.CAMERA_MODIFIED as string, handleCameraModified);
+			};
+		}
+	}, [isReady, aiAnalysis, aiBoundingBoxes, renderingEngineId, viewportId]);
+
+	// Handle bbox dragging and resizing
+	const handleBboxMouseMove = useCallback(
+		(e: React.MouseEvent | MouseEvent) => {
+			if (!bboxDragStart || (!isDraggingBbox && !isResizingBbox) || !selectedBboxId) return;
+
+			const deltaX = e.clientX - bboxDragStart.x;
+			const deltaY = e.clientY - bboxDragStart.y;
+
+			setAiBoundingBoxes(prev =>
+				prev.map(box => {
+					if (box.id !== selectedBboxId) return box;
+
+					if (isDraggingBbox) {
+						// Move the entire bbox
+						return {
+							...box,
+							canvasX: box.canvasX + deltaX,
+							canvasY: box.canvasY + deltaY,
+							isEdited: true,
+						};
+					} else if (isResizingBbox) {
+						// Resize the bbox based on which corner is being dragged
+						const newBox = { ...box, isEdited: true };
+
+						switch (isResizingBbox) {
+							case 'nw': // Top-left
+								newBox.canvasX += deltaX;
+								newBox.canvasY += deltaY;
+								newBox.canvasWidth -= deltaX;
+								newBox.canvasHeight -= deltaY;
+								break;
+							case 'ne': // Top-right
+								newBox.canvasY += deltaY;
+								newBox.canvasWidth += deltaX;
+								newBox.canvasHeight -= deltaY;
+								break;
+							case 'sw': // Bottom-left
+								newBox.canvasX += deltaX;
+								newBox.canvasWidth -= deltaX;
+								newBox.canvasHeight += deltaY;
+								break;
+							case 'se': // Bottom-right
+								newBox.canvasWidth += deltaX;
+								newBox.canvasHeight += deltaY;
+								break;
+						}
+
+						// Ensure minimum size
+						if (newBox.canvasWidth < 20) newBox.canvasWidth = 20;
+						if (newBox.canvasHeight < 20) newBox.canvasHeight = 20;
+
+						return newBox;
+					}
+
+					return box;
+				})
+			);
+
+			setBboxDragStart({ x: e.clientX, y: e.clientY });
+		},
+		[bboxDragStart, isDraggingBbox, isResizingBbox, selectedBboxId]
+	);
+
+	const handleBboxMouseUp = useCallback(() => {
+		setIsDraggingBbox(false);
+		setIsResizingBbox(null);
+		setBboxDragStart(null);
+	}, []);
+
+	// Add/remove bbox drag listeners
+	useEffect(() => {
+		if (isDraggingBbox || isResizingBbox) {
+			window.addEventListener('mousemove', handleBboxMouseMove);
+			window.addEventListener('mouseup', handleBboxMouseUp);
+			return () => {
+				window.removeEventListener('mousemove', handleBboxMouseMove);
+				window.removeEventListener('mouseup', handleBboxMouseUp);
+			};
+		}
+	}, [isDraggingBbox, isResizingBbox, handleBboxMouseMove, handleBboxMouseUp]);
+
+	// Manual bbox drawing handlers
+	const handleManualBboxMouseDown = useCallback(
+		(e: React.MouseEvent) => {
+			if (!isDrawingBbox) return;
+
+			e.stopPropagation();
+			e.preventDefault();
+
+			const rect = elementRef.current?.getBoundingClientRect();
+			if (!rect) return;
+
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+
+			setBboxDrawStart({ x, y });
+			setCurrentDrawingBbox({
+				id: `manual-bbox-${Date.now()}`,
+				label: 'Manual Finding',
+				confidence: 1.0,
+				canvasX: x,
+				canvasY: y,
+				canvasWidth: 0,
+				canvasHeight: 0,
+				color: '#FF00FF', // Magenta for manual bboxes
+				type: 'manual',
+				isEdited: false,
+			});
+		},
+		[isDrawingBbox]
+	);
+
+	const handleManualBboxMouseMove = useCallback(
+		(e: MouseEvent) => {
+			if (!isDrawingBbox || !bboxDrawStart || !currentDrawingBbox) return;
+
+			const rect = elementRef.current?.getBoundingClientRect();
+			if (!rect) return;
+
+			const currentX = e.clientX - rect.left;
+			const currentY = e.clientY - rect.top;
+
+			const width = currentX - bboxDrawStart.x;
+			const height = currentY - bboxDrawStart.y;
+
+			// Update the drawing bbox
+			setCurrentDrawingBbox({
+				...currentDrawingBbox,
+				canvasWidth: Math.abs(width),
+				canvasHeight: Math.abs(height),
+				canvasX: width < 0 ? currentX : bboxDrawStart.x,
+				canvasY: height < 0 ? currentY : bboxDrawStart.y,
+			});
+		},
+		[isDrawingBbox, bboxDrawStart, currentDrawingBbox]
+	);
+
+	const handleManualBboxMouseUp = useCallback(() => {
+		if (!isDrawingBbox || !currentDrawingBbox) return;
+
+		// Only add if bbox has meaningful size (at least 20x20 pixels)
+		if (currentDrawingBbox.canvasWidth >= 20 && currentDrawingBbox.canvasHeight >= 20) {
+			setAiBoundingBoxes(prev => [...prev, { ...currentDrawingBbox, isEdited: true }]);
+
+			// Auto-select the new bbox and enable label editing
+			setSelectedBboxId(currentDrawingBbox.id);
+			setEditingLabelId(currentDrawingBbox.id);
+			setEditingLabelText(currentDrawingBbox.label);
+		}
+
+		// Reset drawing state
+		setBboxDrawStart(null);
+		setCurrentDrawingBbox(null);
+	}, [isDrawingBbox, currentDrawingBbox]);
+
+	// Add/remove manual bbox drawing listeners
+	useEffect(() => {
+		if (isDrawingBbox && bboxDrawStart) {
+			window.addEventListener('mousemove', handleManualBboxMouseMove);
+			window.addEventListener('mouseup', handleManualBboxMouseUp);
+			return () => {
+				window.removeEventListener('mousemove', handleManualBboxMouseMove);
+				window.removeEventListener('mouseup', handleManualBboxMouseUp);
+			};
+		}
+	}, [isDrawingBbox, bboxDrawStart, handleManualBboxMouseMove, handleManualBboxMouseUp]);
+
+	// Handle label editing for manual bboxes
+	const handleSaveLabelEdit = useCallback(() => {
+		if (!editingLabelId || !editingLabelText.trim()) {
+			setEditingLabelId(null);
+			return;
+		}
+
+		setAiBoundingBoxes(prev =>
+			prev.map(box =>
+				box.id === editingLabelId ? { ...box, label: editingLabelText.trim(), isEdited: true } : box
+			)
+		);
+
+		setEditingLabelId(null);
+		setEditingLabelText('');
+	}, [editingLabelId, editingLabelText]);
+
+	const handleCancelLabelEdit = useCallback(() => {
+		setEditingLabelId(null);
+		setEditingLabelText('');
+	}, []);
+
+	// Delete bounding box
+	const handleDeleteBoundingBox = useCallback(
+		(id: string) => {
+			setAiBoundingBoxes(prev => prev.filter(box => box.id !== id));
+			if (selectedBboxId === id) {
+				setSelectedBboxId(null);
+			}
+			if (editingLabelId === id) {
+				setEditingLabelId(null);
+				setEditingLabelText('');
+			}
+		},
+		[selectedBboxId, editingLabelId]
+	);
+
+	// Convert canvas coordinates back to image pixels for API
+	const canvasToImagePixels = useCallback(
+		(canvasX: number, canvasY: number): { x: number; y: number } | null => {
+			try {
+				const engine = getRenderingEngine(renderingEngineId);
+				const viewport = engine?.getViewport(viewportId) as Types.IStackViewport;
+				if (!viewport) return null;
+
+				const image = viewport.getCornerstoneImage();
+				const imageWidth = image.width;
+				const imageHeight = image.height;
+
+				const imageData = viewport.getImageData();
+				const spacing = imageData.spacing || [1, 1, 1];
+				const origin = imageData.origin || [0, 0, 0];
+				const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+				// Convert canvas to world coordinates
+				const worldCoords = viewport.canvasToWorld([canvasX, canvasY]);
+
+				// Convert world to image pixels (inverse of imagePixelToWorld)
+				// worldX = origin[0] + (direction[0] * px * spacing[0]) + (direction[1] * py * spacing[1])
+				// Solve for px and py
+				const det = direction[0] * direction[4] - direction[1] * direction[3];
+				if (Math.abs(det) < 0.0001) return null; // Singular matrix
+
+				const dx = worldCoords[0] - origin[0];
+				const dy = worldCoords[1] - origin[1];
+
+				const px = (direction[4] * dx - direction[1] * dy) / det / spacing[0];
+				const py = (-direction[3] * dx + direction[0] * dy) / det / spacing[1];
+
+				// Clamp to image bounds
+				const clampedX = Math.max(0, Math.min(imageWidth, px));
+				const clampedY = Math.max(0, Math.min(imageHeight, py));
+
+				return { x: clampedX, y: clampedY };
+			} catch (error) {
+				console.error('Error converting canvas to image pixels:', error);
+				return null;
+			}
+		},
+		[renderingEngineId, viewportId]
+	);
+
+	// Save bbox changes
+	const handleSaveBboxChanges = useCallback(async () => {
+		try {
+			const editedBoxes = aiBoundingBoxes.filter(box => box.isEdited);
+			if (editedBoxes.length === 0) {
+				alert('No changes to save');
+				return;
+			}
+
+			// Convert canvas coords back to image pixels
+			const updates = editedBoxes
+				.map(box => {
+					const topLeft = canvasToImagePixels(box.canvasX, box.canvasY);
+					const bottomRight = canvasToImagePixels(
+						box.canvasX + box.canvasWidth,
+						box.canvasY + box.canvasHeight
+					);
+
+					if (!topLeft || !bottomRight) return null;
+
+					return {
+						id: box.id,
+						xMin: topLeft.x,
+						yMin: topLeft.y,
+						xMax: bottomRight.x,
+						yMax: bottomRight.y,
+					};
+				})
+				.filter(Boolean);
+
+			// TODO: Call API to save changes
+			// await aiAnalysisService.updateFindings(aiAnalysis.id, updates);
+
+			// For now, just show success message
+			alert(`Successfully saved ${updates.length} bbox changes!\n\n(API integration pending)`);
+
+			// Mark as saved by removing isEdited flag
+			setAiBoundingBoxes(prev => prev.map(box => ({ ...box, isEdited: false })));
+			setSelectedBboxId(null);
+		} catch (error) {
+			console.error('Error saving bbox changes:', error);
+			alert('Failed to save changes');
+		}
+	}, [aiBoundingBoxes, canvasToImagePixels]);
 
 	// Handle note dragging
 	const handleNoteMouseDown = useCallback(
@@ -1117,9 +1363,9 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 				case 'B':
 					if (!e.ctrlKey && !e.metaKey) {
 						e.preventDefault();
-						setActiveAnnotationTool(
-							activeTool === RectangleROITool.toolName ? null : RectangleROITool.toolName
-						);
+						setIsDrawingBbox(prev => !prev);
+						// Deselect any selected bbox when toggling drawing mode
+						setSelectedBboxId(null);
 					}
 					break;
 				case 'n':
@@ -1189,6 +1435,24 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 							)}
 						</div>
 					)}
+
+					{/* Save bbox changes button - show if any bbox has been edited */}
+					{aiBoundingBoxes.some(box => box.isEdited) && (
+						<button
+							onClick={handleSaveBboxChanges}
+							className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+						>
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M5 13l4 4L19 7"
+								/>
+							</svg>
+							Save AI Findings Changes
+						</button>
+					)}
 				</div>
 
 				<DicomToolbar
@@ -1215,6 +1479,14 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 						}
 					}}
 					showInfo={showInfo}
+					isDrawingBbox={isDrawingBbox}
+					onToggleBboxDrawing={() => {
+						setIsDrawingBbox(!isDrawingBbox);
+						// Deselect any selected bbox when toggling drawing mode
+						if (!isDrawingBbox) {
+							setSelectedBboxId(null);
+						}
+					}}
 				/>
 			</div>
 
@@ -1249,9 +1521,266 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 
 				<div
 					ref={elementRef}
-					className={`w-full h-full outline-none ${isNoteMode ? 'cursor-crosshair' : 'cursor-default'}`}
+					className={`w-full h-full outline-none ${isDrawingBbox ? 'cursor-crosshair' : isNoteMode ? 'cursor-crosshair' : 'cursor-default'}`}
 					onContextMenu={e => e.preventDefault()}
-				/>
+					onMouseDown={isDrawingBbox ? handleManualBboxMouseDown : undefined}
+				>
+					{/* SVG Overlay for AI Findings and Manual Bboxes */}
+					{isReady && (aiBoundingBoxes.length > 0 || currentDrawingBbox) && (
+						<svg
+							className="absolute inset-0 w-full h-full z-10"
+							style={{ mixBlendMode: 'normal', pointerEvents: 'none' }}
+						>
+							{/* Background rect to deselect bbox when clicking outside */}
+							{!isDrawingBbox && (
+								<rect
+									x="0"
+									y="0"
+									width="100%"
+									height="100%"
+									fill="transparent"
+									style={{ pointerEvents: 'auto' }}
+									onClick={() => setSelectedBboxId(null)}
+								/>
+							)}
+
+							{/* Render all bboxes (AI + Manual) */}
+							{aiBoundingBoxes.map(box => {
+								const isSelected = selectedBboxId === box.id;
+								const isManual = box.type === 'manual';
+								return (
+									<g key={box.id}>
+										{/* Rectangle */}
+										<rect
+											x={box.canvasX}
+											y={box.canvasY}
+											width={box.canvasWidth}
+											height={box.canvasHeight}
+											fill={isSelected ? 'rgba(255, 255, 255, 0.1)' : 'none'}
+											stroke={box.color}
+											strokeWidth={isSelected ? '4' : '3'}
+											strokeDasharray={isSelected ? '8 4' : 'none'}
+											opacity="0.9"
+											style={{
+												pointerEvents: 'auto',
+												cursor: isSelected ? 'move' : 'pointer',
+											}}
+											onClick={e => {
+												e.stopPropagation();
+												setSelectedBboxId(box.id);
+											}}
+											onMouseDown={e => {
+												if (isSelected) {
+													e.stopPropagation();
+													e.preventDefault();
+													setIsDraggingBbox(true);
+													setBboxDragStart({ x: e.clientX, y: e.clientY });
+												}
+											}}
+										/>
+										{/* Label background */}
+										<rect
+											x={box.canvasX}
+											y={box.canvasY - 30}
+											width={box.label.length * 8 + 60}
+											height="26"
+											fill="rgba(0, 0, 0, 0.8)"
+											stroke={box.color}
+											strokeWidth={isSelected ? '2' : '1'}
+											style={{
+												pointerEvents: isManual && isSelected ? 'auto' : 'none',
+												cursor: isManual && isSelected ? 'text' : 'default',
+											}}
+											onClick={e => {
+												if (isManual && isSelected) {
+													e.stopPropagation();
+													setEditingLabelId(box.id);
+													setEditingLabelText(box.label);
+												}
+											}}
+										/>
+										{/* Label text */}
+										<text
+											x={box.canvasX + 5}
+											y={box.canvasY - 10}
+											fill={box.color}
+											fontSize="16"
+											fontWeight="600"
+											fontFamily="Arial, sans-serif"
+											style={{
+												pointerEvents: isManual && isSelected ? 'auto' : 'none',
+												cursor: isManual && isSelected ? 'text' : 'default',
+											}}
+											onClick={e => {
+												if (isManual && isSelected) {
+													e.stopPropagation();
+													setEditingLabelId(box.id);
+													setEditingLabelText(box.label);
+												}
+											}}
+										>
+											{box.label} {isManual ? '' : `(${Math.round(box.confidence * 100)}%)`}
+										</text>
+
+										{/* Resize handles (corners) - only show when selected */}
+										{isSelected && (
+											<>
+												{/* Top-left corner */}
+												<circle
+													cx={box.canvasX}
+													cy={box.canvasY}
+													r="6"
+													fill="white"
+													stroke={box.color}
+													strokeWidth="2"
+													style={{
+														pointerEvents: 'auto',
+														cursor: 'nwse-resize',
+													}}
+													onMouseDown={e => {
+														e.stopPropagation();
+														e.preventDefault();
+														setIsResizingBbox('nw');
+														setBboxDragStart({ x: e.clientX, y: e.clientY });
+													}}
+												/>
+												{/* Top-right corner */}
+												<circle
+													cx={box.canvasX + box.canvasWidth}
+													cy={box.canvasY}
+													r="6"
+													fill="white"
+													stroke={box.color}
+													strokeWidth="2"
+													style={{
+														pointerEvents: 'auto',
+														cursor: 'nesw-resize',
+													}}
+													onMouseDown={e => {
+														e.stopPropagation();
+														e.preventDefault();
+														setIsResizingBbox('ne');
+														setBboxDragStart({ x: e.clientX, y: e.clientY });
+													}}
+												/>
+												{/* Bottom-left corner */}
+												<circle
+													cx={box.canvasX}
+													cy={box.canvasY + box.canvasHeight}
+													r="6"
+													fill="white"
+													stroke={box.color}
+													strokeWidth="2"
+													style={{
+														pointerEvents: 'auto',
+														cursor: 'nesw-resize',
+													}}
+													onMouseDown={e => {
+														e.stopPropagation();
+														e.preventDefault();
+														setIsResizingBbox('sw');
+														setBboxDragStart({ x: e.clientX, y: e.clientY });
+													}}
+												/>
+												{/* Bottom-right corner */}
+												<circle
+													cx={box.canvasX + box.canvasWidth}
+													cy={box.canvasY + box.canvasHeight}
+													r="6"
+													fill="white"
+													stroke={box.color}
+													strokeWidth="2"
+													style={{
+														pointerEvents: 'auto',
+														cursor: 'nwse-resize',
+													}}
+													onMouseDown={e => {
+														e.stopPropagation();
+														e.preventDefault();
+														setIsResizingBbox('se');
+														setBboxDragStart({ x: e.clientX, y: e.clientY });
+													}}
+												/>
+											</>
+										)}
+									</g>
+								);
+							})}
+
+							{/* Currently drawing bbox */}
+							{currentDrawingBbox &&
+								currentDrawingBbox.canvasWidth > 0 &&
+								currentDrawingBbox.canvasHeight > 0 && (
+									<g>
+										<rect
+											x={currentDrawingBbox.canvasX}
+											y={currentDrawingBbox.canvasY}
+											width={currentDrawingBbox.canvasWidth}
+											height={currentDrawingBbox.canvasHeight}
+											fill="rgba(255, 0, 255, 0.1)"
+											stroke={currentDrawingBbox.color}
+											strokeWidth="3"
+											strokeDasharray="8 4"
+											opacity="0.8"
+											style={{ pointerEvents: 'none' }}
+										/>
+										<text
+											x={currentDrawingBbox.canvasX + 5}
+											y={currentDrawingBbox.canvasY + 20}
+											fill={currentDrawingBbox.color}
+											fontSize="14"
+											fontWeight="600"
+											fontFamily="Arial, sans-serif"
+											style={{ pointerEvents: 'none' }}
+										>
+											Drawing... {Math.round(currentDrawingBbox.canvasWidth)}×
+											{Math.round(currentDrawingBbox.canvasHeight)}
+										</text>
+									</g>
+								)}
+						</svg>
+					)}
+
+					{/* Label editing input overlay */}
+					{editingLabelId &&
+						(() => {
+							const editingBox = aiBoundingBoxes.find(b => b.id === editingLabelId);
+							if (!editingBox) return null;
+
+							return (
+								<div
+									className="absolute z-20"
+									style={{
+										left: editingBox.canvasX,
+										top: editingBox.canvasY - 35,
+										pointerEvents: 'auto',
+									}}
+								>
+									<input
+										type="text"
+										value={editingLabelText}
+										onChange={e => setEditingLabelText(e.target.value)}
+										onKeyDown={e => {
+											if (e.key === 'Enter') {
+												handleSaveLabelEdit();
+											} else if (e.key === 'Escape') {
+												handleCancelLabelEdit();
+											}
+										}}
+										onBlur={handleSaveLabelEdit}
+										autoFocus
+										className="px-2 py-1 bg-slate-800 text-white border-2 rounded text-sm font-semibold outline-none"
+										style={{
+											borderColor: editingBox.color,
+											minWidth: '150px',
+											boxShadow: `0 0 10px ${editingBox.color}40`,
+										}}
+										placeholder="Enter finding label..."
+									/>
+								</div>
+							);
+						})()}
+				</div>
 
 				{/* Figma-style Notes Overlay */}
 				{isReady && (
@@ -1286,42 +1815,18 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 					/>
 				)}
 
-				{/* AI Annotations Debug */}
-				{isReady && aiAnalysis?.findings && (
-					<div className="absolute top-4 right-4 bg-black/80 backdrop-blur-md rounded-lg p-3 border border-slate-700/50 shadow-2xl z-30">
-						<div className="text-xs text-slate-300 mb-2">
-							<span className="text-green-400">AI Annotations:</span> {aiAnalysis.findings.length}
-						</div>
-						<button
-							onClick={() => {
-								const engine = getRenderingEngine(renderingEngineId);
-								const viewport = engine?.getViewport(viewportId);
-								if (viewport && elementRef.current) {
-									const allAnns = annotation.state.getAnnotations(
-										RectangleROITool.toolName,
-										elementRef.current
-									);
-									console.log('🔍 Debug - Current annotations:', allAnns);
-									viewport.render();
-								}
-							}}
-							className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-						>
-							Debug Annotations
-						</button>
-					</div>
-				)}
-
 				{/* Annotations List Panel */}
 				{isReady && (
 					<DicomAnnotationsList
 						show={showInfo}
 						annotations={annotations}
 						notes={notes}
+						boundingBoxes={aiBoundingBoxes}
 						showAnnotations={showAnnotations}
 						onToggleShowAnnotations={() => setShowAnnotations(!showAnnotations)}
 						onDeleteAnnotation={deleteAnnotation}
 						onDeleteNote={deleteNote}
+						onDeleteBoundingBox={handleDeleteBoundingBox}
 					/>
 				)}
 

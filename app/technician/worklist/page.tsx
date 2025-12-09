@@ -1,24 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-	Camera,
-	Search,
-	Filter,
-	Clock,
-	User,
-	FileText,
-	AlertCircle,
-	CheckCircle2,
-	XCircle,
-	MoreVertical,
-} from 'lucide-react';
-import { formatDate } from '@/lib/utils/date';
+import { Camera, Search, Clock, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { getVietnamTime, parseUTCDate } from '@/lib/utils/date';
 import {
 	Select,
 	SelectContent,
@@ -48,15 +36,7 @@ export default function TechnicianWorklist() {
 	const [statusFilter, setStatusFilter] = useState<string>('Pending');
 	const [isLoading, setIsLoading] = useState(true);
 
-	useEffect(() => {
-		loadOrders();
-	}, []);
-
-	useEffect(() => {
-		filterOrders();
-	}, [orders, searchQuery, modalityFilter, statusFilter]);
-
-	const loadOrders = async () => {
+	const loadOrders = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const result = await imagingOrderService.getAll(1, 100);
@@ -80,9 +60,10 @@ export default function TechnicianWorklist() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	const filterOrders = () => {
+	const filterOrders = useCallback(() => {
 		let filtered = [...orders];
 
 		// Filter by status
@@ -121,14 +102,25 @@ export default function TechnicianWorklist() {
 		});
 
 		setFilteredOrders(filtered);
-	};
+	}, [orders, searchQuery, modalityFilter, statusFilter]);
+
+	useEffect(() => {
+		loadOrders();
+	}, [loadOrders]);
+
+	useEffect(() => {
+		filterOrders();
+	}, [orders, searchQuery, modalityFilter, statusFilter, filterOrders]);
 
 	const handleOrderClick = (orderId: string) => {
 		router.push(`/technician/orders/${orderId}`);
 	};
 
 	const getWaitingTime = (createdAt: string) => {
-		const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+		const vietnamNow = getVietnamTime();
+		const createdAtUTC = parseUTCDate(createdAt);
+		const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+		const minutes = Math.max(0, Math.floor(waitingMs / 60000));
 		if (minutes < 60) return `${minutes}m`;
 		const hours = Math.floor(minutes / 60);
 		const remainingMinutes = minutes % 60;

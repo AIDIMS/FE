@@ -36,7 +36,6 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 	const { addNotification } = useNotification();
 	const [isLoading, setIsLoading] = useState(false);
 	const [doctors, setDoctors] = useState<Doctor[]>([]);
-	const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
 	const [formData, setFormData] = useState({
 		requestingDoctorId: order?.requestingDoctorId || '',
 		modalityRequested: order?.modalityRequested || '',
@@ -50,18 +49,17 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 	// Load doctors on component mount
 	useEffect(() => {
 		loadDoctors();
-	}, []);
+	}, [loadDoctors]);
 
-	const loadDoctors = async () => {
+	const loadDoctors = useCallback(async () => {
 		try {
-			setIsLoadingDoctors(true);
 			// Get all users and filter doctors on frontend for now
 			const result = await userService.getAll(1, 100);
 
 			if (result.isSuccess && result.data?.items) {
 				// Filter doctors by role on frontend
 				const doctorList = result.data.items
-					.filter(user => user.role === 1) // UserRole.Doctor = 1
+					.filter(user => user.role === 3)
 					.map(user => ({
 						id: user.id,
 						firstName: user.firstName,
@@ -76,10 +74,8 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 		} catch (error) {
 			console.error('Error loading doctors:', error);
 			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
-		} finally {
-			setIsLoadingDoctors(false);
 		}
-	};
+	}, [addNotification]);
 
 	// Danh sách các loại chụp phổ biến - match với backend enum
 	const modalityOptions = [

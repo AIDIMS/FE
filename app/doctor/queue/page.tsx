@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
 import { Clock, Users, FileText, Filter } from 'lucide-react';
 import { PatientVisit } from '@/lib/types/patient';
 import { visitService } from '@/lib/api/services/visit.service';
+import { getVietnamTime, parseUTCDate } from '@/lib/utils/date';
 import { userService } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserRole } from '@/lib/types';
@@ -37,28 +38,7 @@ export default function DoctorQueueDashboard() {
 
 	const isAdmin = currentUser?.role === UserRole.Admin;
 
-	useEffect(() => {
-		// Initialize time only on client side to avoid hydration mismatch
-		setCurrentTime(new Date());
-
-		// Update current time every minute
-		const timer = setInterval(() => {
-			setCurrentTime(new Date());
-		}, 60000);
-
-		return () => clearInterval(timer);
-	}, []);
-
-	useEffect(() => {
-		if (!currentUser) return;
-
-		if (isAdmin) {
-			loadDoctors();
-		}
-		loadQueue();
-	}, [currentUser, selectedDoctorId]);
-
-	const loadDoctors = async () => {
+	const loadDoctors = useCallback(async () => {
 		try {
 			const result = await userService.getAll(1, 100);
 			if (result.isSuccess && result.data) {
@@ -73,9 +53,9 @@ export default function DoctorQueueDashboard() {
 		} catch (error) {
 			console.error('Error loading doctors:', error);
 		}
-	};
+	}, []);
 
-	const loadQueue = async () => {
+	const loadQueue = useCallback(async () => {
 		if (!currentUser) {
 			return;
 		}
@@ -100,13 +80,18 @@ export default function DoctorQueueDashboard() {
 				// Filter only waiting status and map to QueuePatient
 				const visits = result.data.items
 					.filter(v => v.status?.toLowerCase() === 'waiting' && !v.isDeleted)
-					.map(v => ({
-						...v,
-						patientGender: null,
-						patientDob: null,
-						patientPhone: null,
-						waitingTimeMinutes: Math.floor((Date.now() - new Date(v.createdAt).getTime()) / 60000),
-					})) as QueuePatient[];
+					.map(v => {
+						const vietnamNow = getVietnamTime();
+						const createdAtUTC = parseUTCDate(v.createdAt);
+						const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+						return {
+							...v,
+							patientGender: null,
+							patientDob: null,
+							patientPhone: null,
+							waitingTimeMinutes: Math.max(0, Math.floor(waitingMs / 60000)),
+						};
+					}) as QueuePatient[];
 
 				// Sort by created time (oldest first)
 				visits.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -120,10 +105,35 @@ export default function DoctorQueueDashboard() {
 		} finally {
 			setIsLoading(false);
 		}
-	};
+		 
+	}, [currentUser, isAdmin, selectedDoctorId]);
+
+	useEffect(() => {
+		// Initialize time only on client side to avoid hydration mismatch
+		setCurrentTime(new Date());
+
+		// Update current time every minute
+		const timer = setInterval(() => {
+			setCurrentTime(new Date());
+		}, 60000);
+
+		return () => clearInterval(timer);
+	}, []);
+
+	useEffect(() => {
+		if (!currentUser) return;
+
+		if (isAdmin) {
+			loadDoctors();
+		}
+		loadQueue();
+	}, [currentUser, selectedDoctorId, isAdmin, loadQueue, loadDoctors]);
 
 	const getWaitingTime = (createdAt: string) => {
-		const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+		const vietnamNow = getVietnamTime();
+		const createdAtUTC = parseUTCDate(createdAt);
+		const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+		const minutes = Math.max(0, Math.floor(waitingMs / 60000));
 		if (minutes < 60) return `${minutes} phút`;
 		const hours = Math.floor(minutes / 60);
 		return `${hours} giờ ${minutes % 60} phút`;
@@ -281,9 +291,10 @@ export default function DoctorQueueDashboard() {
 								<div className="space-y-px bg-slate-100">
 									{queue.map((patient, index) => {
 										const age = calculateAge(patient.patientDob);
-										const waitingMinutes = Math.floor(
-											(Date.now() - new Date(patient.createdAt).getTime()) / 60000
-										);
+										const vietnamNow = getVietnamTime();
+										const createdAtUTC = parseUTCDate(patient.createdAt);
+										const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+										const waitingMinutes = Math.max(0, Math.floor(waitingMs / 60000));
 										return (
 											<div
 												key={patient.id}
