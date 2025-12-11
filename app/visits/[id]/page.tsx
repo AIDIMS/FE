@@ -20,8 +20,8 @@ import { ExaminationNoteCard } from '@/components/visits/examination-note-card';
 import { ImagingOrdersCard } from '@/components/visits/imaging-orders-card';
 import { DicomFilesCard } from '@/components/visits/dicom-files-card';
 import { visitService, imagingOrderService } from '@/lib/api';
-import { useNotification } from '@/lib/contexts';
-import { NotificationType } from '@/lib/types/notification';
+import { diagnosisService } from '@/lib/api/services/diagnosis.service';
+import { toast } from '@/lib/utils/toast';
 
 interface VisitDetail extends PatientVisit {
 	patientName: string;
@@ -48,7 +48,6 @@ interface ExaminationNote {
 export default function VisitDetailPage() {
 	const params = useParams();
 	const router = useRouter();
-	const { addNotification } = useNotification();
 	const visitId = params.id as string;
 
 	const [visit, setVisit] = useState<VisitDetail | null>(null);
@@ -59,6 +58,7 @@ export default function VisitDetailPage() {
 		treatment_plan: '',
 		notes: '',
 	});
+	const [diagnosisId, setDiagnosisId] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
 	const [selectedOrder, setSelectedOrder] = useState<ImagingOrder | null>(null);
@@ -91,21 +91,49 @@ export default function VisitDetailPage() {
 		[visitId]
 	);
 
-	const loadImagingOrders = useCallback(async (visitId: string) => {
+	const loadDiagnosis = useCallback(async (studyId: string) => {
 		try {
-			const result = await imagingOrderService.getByVisitId(visitId);
-
-			if (result.isSuccess && result.data?.items) {
-				console.log('Imaging orders loaded:', result.data.items);
-				result.data.items.forEach(order => {
-					console.log(`Order ${order.id} status:`, order.status);
-				});
-				setImagingOrders(result.data.items);
+			const result = await diagnosisService.getByStudyId(studyId);
+			if (result.isSuccess && result.data) {
+				setDiagnosisId(result.data.id);
+				setExaminationNote(prev => ({
+					...prev,
+					diagnosis: result.data!.finalDiagnosis,
+					treatment_plan: result.data!.treatmentPlan || '',
+					notes: result.data!.notes || '',
+				}));
 			}
 		} catch (error) {
-			console.error('Error loading imaging orders:', error);
+			console.error('Error loading diagnosis:', error);
 		}
 	}, []);
+
+	const loadImagingOrders = useCallback(
+		async (visitId: string) => {
+			try {
+				const result = await imagingOrderService.getByVisitId(visitId);
+
+				if (result.isSuccess && result.data?.items) {
+					console.log('Imaging orders loaded:', result.data.items);
+					result.data.items.forEach(order => {
+						console.log(`Order ${order.id} status:`, order.status);
+					});
+					setImagingOrders(result.data.items);
+
+					// Load diagnosis if there's a completed order with studyId
+					const completedOrder = result.data.items.find(
+						order => order.status === 'Completed' && order.studyId
+					);
+					if (completedOrder?.studyId) {
+						loadDiagnosis(completedOrder.studyId);
+					}
+				}
+			} catch (error) {
+				console.error('Error loading imaging orders:', error);
+			}
+		},
+		[loadDiagnosis]
+	);
 
 	const loadVisitData = useCallback(async () => {
 		setIsLoading(true);
@@ -143,19 +171,15 @@ export default function VisitDetailPage() {
 				// Load imaging orders for this visit
 				await loadImagingOrders(visitId);
 			} else {
-				addNotification(
-					NotificationType.ERROR,
-					'Lỗi',
-					result.message || 'Không thể tải thông tin ca khám'
-				);
+				toast.error('Lỗi', result.message || 'Không thể tải thông tin ca khám');
 			}
 		} catch (error) {
 			console.error('Error loading visit data:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải thông tin ca khám');
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải thông tin ca khám');
 		} finally {
 			setIsLoading(false);
 		}
-	}, [visitId, addNotification, loadPreviousVisits, loadImagingOrders]);
+	}, [visitId, loadPreviousVisits, loadImagingOrders]);
 
 	useEffect(() => {
 		loadVisitData();
@@ -177,17 +201,13 @@ export default function VisitDetailPage() {
 				const result = await imagingOrderService.delete(order.id);
 				if (result.isSuccess) {
 					setImagingOrders(prev => prev.filter(o => o.id !== order.id));
-					addNotification(NotificationType.SUCCESS, 'Thành công', 'Đã xóa chỉ định chụp chiếu');
+					toast.success('Thành công', 'Đã xóa chỉ định chụp chiếu');
 				} else {
-					addNotification(
-						NotificationType.ERROR,
-						'Lỗi',
-						result.message || 'Không thể xóa chỉ định'
-					);
+					toast.error('Lỗi', result.message || 'Không thể xóa chỉ định');
 				}
 			} catch (error) {
 				console.error('Error deleting imaging order:', error);
-				addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi xóa chỉ định');
+				toast.error('Lỗi', 'Đã xảy ra lỗi khi xóa chỉ định');
 			}
 		}
 	};
@@ -207,17 +227,9 @@ export default function VisitDetailPage() {
 
 				if (result.isSuccess && result.data) {
 					setImagingOrders(prev => prev.map(o => (o.id === selectedOrder.id ? result.data! : o)));
-					addNotification(
-						NotificationType.SUCCESS,
-						'Thành công',
-						'Đã cập nhật chỉ định chụp chiếu'
-					);
+					toast.success('Thành công', 'Đã cập nhật chỉ định chụp chiếu');
 				} else {
-					addNotification(
-						NotificationType.ERROR,
-						'Lỗi',
-						result.message || 'Không thể cập nhật chỉ định'
-					);
+					toast.error('Lỗi', result.message || 'Không thể cập nhật chỉ định');
 					return;
 				}
 			} else {
@@ -234,13 +246,9 @@ export default function VisitDetailPage() {
 
 				if (result.isSuccess && result.data) {
 					setImagingOrders(prev => [result.data!, ...prev]);
-					addNotification(NotificationType.SUCCESS, 'Thành công', 'Đã tạo chỉ định chụp chiếu mới');
+					toast.success('Thành công', 'Đã tạo chỉ định chụp chiếu mới');
 				} else {
-					addNotification(
-						NotificationType.ERROR,
-						'Lỗi',
-						result.message || 'Không thể tạo chỉ định'
-					);
+					toast.error('Lỗi', result.message || 'Không thể tạo chỉ định');
 					return;
 				}
 			}
@@ -249,7 +257,7 @@ export default function VisitDetailPage() {
 			setSelectedOrder(null);
 		} catch (error) {
 			console.error('Error submitting imaging order:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi lưu chỉ định');
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi lưu chỉ định');
 		}
 	};
 
@@ -258,14 +266,55 @@ export default function VisitDetailPage() {
 	};
 
 	const handleSaveExaminationNote = async () => {
+		if (!examinationNote.diagnosis.trim()) {
+			toast.warning('Cảnh báo', 'Vui lòng nhập chẩn đoán');
+			return;
+		}
+
+		// Find a completed imaging order to get studyId
+		const completedOrder = imagingOrders.find(order => order.status === 'Completed');
+		if (!completedOrder?.studyId) {
+			toast.warning('Cảnh báo', 'Cần có ít nhất một chỉ định hoàn thành để lưu chẩn đoán');
+
+			return;
+		}
+
 		setIsSavingNote(true);
 		try {
-			// Simulate API call
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			console.log('Examination note saved:', examinationNote);
-			// Show success message
+			if (diagnosisId) {
+				// Update existing diagnosis
+				const result = await diagnosisService.update(diagnosisId, {
+					finalDiagnosis: examinationNote.diagnosis,
+					treatmentPlan: examinationNote.treatment_plan,
+					notes: examinationNote.notes,
+					reportStatus: 'Draft',
+				});
+
+				if (result.isSuccess) {
+					toast.success('Thành công', 'Đã cập nhật chẩn đoán');
+				} else {
+					toast.error('Lỗi', result.message || 'Không thể cập nhật chẩn đoán');
+				}
+			} else {
+				// Create new diagnosis
+				const result = await diagnosisService.create({
+					studyId: completedOrder.studyId,
+					finalDiagnosis: examinationNote.diagnosis,
+					treatmentPlan: examinationNote.treatment_plan,
+					notes: examinationNote.notes,
+					reportStatus: 'Draft',
+				});
+
+				if (result.isSuccess && result.data) {
+					setDiagnosisId(result.data.id);
+					toast.success('Thành công', 'Đã lưu chẩn đoán');
+				} else {
+					toast.error('Lỗi', result.message || 'Không thể lưu chẩn đoán');
+				}
+			}
 		} catch (error) {
 			console.error('Error saving examination note:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi lưu chẩn đoán');
 		} finally {
 			setIsSavingNote(false);
 		}

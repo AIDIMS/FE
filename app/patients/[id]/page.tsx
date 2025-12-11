@@ -43,7 +43,7 @@ import {
 	DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Calendar, User } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/utils/toast';
 
 export default function PatientDetailPage() {
 	const params = useParams();

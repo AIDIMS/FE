@@ -9,6 +9,8 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
@@ -69,6 +71,9 @@ export function UserTable({ users, onEdit, onDelete, isLoading, currentUserId }:
 							Phòng ban
 						</TableHead>
 						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
+							Ngày tạo
+						</TableHead>
+						<TableHead className="font-semibold text-gray-900 text-xs uppercase tracking-wider">
 							Trạng thái
 						</TableHead>
 						<TableHead className="w-12 pr-6"></TableHead>
@@ -95,6 +100,11 @@ export function UserTable({ users, onEdit, onDelete, isLoading, currentUserId }:
 							</TableCell>
 							<TableCell className="py-4">
 								<p className="text-sm text-gray-700">{getDepartmentName(user.department)}</p>
+							</TableCell>
+							<TableCell className="py-4">
+								<p className="text-sm text-gray-700">
+									{format(new Date(user.createdAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+								</p>
 							</TableCell>
 							<TableCell className="py-4">
 								{!user.isDeleted ? (

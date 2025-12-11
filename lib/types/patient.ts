@@ -63,6 +63,7 @@ export interface ImagingOrder {
 	bodyPartRequested: string;
 	reasonForStudy: string | null;
 	status: string;
+	studyId?: string; // Optional: populated when study is created
 	createdAt: string;
 	createdBy: string | null;
 	updatedAt: string | null;

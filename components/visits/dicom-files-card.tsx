@@ -143,14 +143,14 @@ export function DicomFilesCard({ orderId }: DicomFilesCardProps) {
 				<DicomViewer
 					file={selectedFile}
 					aiAnalysis={viewerAiAnalysis}
+					instanceId={viewerInstanceId}
 					onClose={() => {
 						setViewerOpen(false);
 						setViewerAiAnalysis(null);
 						setViewerInstanceId(null);
 					}}
 				/>
-			)}
-
+			)}{' '}
 			<Card className="border border-slate-200 bg-white shadow-sm">
 				<CardHeader className="pb-4 border-b border-slate-200">
 					<div className="flex items-center justify-between">

@@ -17,8 +17,7 @@ import { visitService } from '@/lib/api';
 import { userService } from '@/lib/api';
 import { UserListDto } from '@/lib/types/user';
 import { UserRole } from '@/lib/types/auth';
-import { useNotification } from '@/lib/contexts';
-import { NotificationType } from '@/lib/types/notification';
+import { toast } from '@/lib/utils/toast';
 
 interface PatientVisitFormProps {
 	patientId: string;
@@ -28,7 +27,6 @@ interface PatientVisitFormProps {
 }
 
 export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: PatientVisitFormProps) {
-	const { addNotification } = useNotification();
 	const [isLoading, setIsLoading] = useState(false);
 	const [doctors, setDoctors] = useState<UserListDto[]>([]);
 	const [loadingDoctors, setLoadingDoctors] = useState(true);
@@ -49,11 +47,11 @@ export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: Patie
 					const doctorsList = result.data.items.filter(user => user.role === UserRole.Doctor);
 					setDoctors(doctorsList);
 				} else {
-					addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+					toast.error('Lỗi', 'Không thể tải danh sách bác sĩ');
 				}
 			} catch (error) {
 				console.error('Error fetching doctors:', error);
-				addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+				toast.error('Lỗi', 'Không thể tải danh sách bác sĩ');
 			} finally {
 				setLoadingDoctors(false);
 			}
@@ -89,14 +87,14 @@ export function PatientVisitForm({ patientId, visit, onSubmit, onCancel }: Patie
 			});
 
 			if (result.isSuccess && result.data) {
-				addNotification(NotificationType.SUCCESS, 'Thành công', 'Tạo ca khám mới thành công');
+				toast.success('Thành công', 'Tạo ca khám mới thành công');
 				await onSubmit(result.data);
 			} else {
-				addNotification(NotificationType.ERROR, 'Lỗi', result.message || 'Không thể tạo ca khám');
+				toast.error('Lỗi', result.message || 'Không thể tạo ca khám');
 			}
 		} catch (error) {
 			console.error('Error submitting visit:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tạo ca khám');
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tạo ca khám');
 		} finally {
 			setIsLoading(false);
 		}

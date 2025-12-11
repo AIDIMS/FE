@@ -116,10 +116,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 
 				{/* User menu */}
 				<div className="flex items-center gap-3">
-					<Link
-						href="/profile"
-						className="hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity"
-					>
+					<div className="hidden sm:flex items-center gap-2">
 						<div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-sm font-bold shrink-0">
 							{user?.firstName?.charAt(0)}
 							{user?.lastName?.charAt(0)}
@@ -133,7 +130,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 								<span className="text-xs text-gray-500">Online</span>
 							</div>
 						</div>
-					</Link>
+					</div>
 					<Link href="/profile">
 						<Button variant="ghost" size="icon" className="rounded-full sm:hidden">
 							<div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">

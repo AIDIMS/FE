@@ -7,15 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Mail, Phone, Save, Loader2, Lock, KeyRound } from 'lucide-react';
+import { User, Mail, Phone, Save, Loader2, Lock, KeyRound, Calendar } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/config';
-import { useAuth } from '@/lib/contexts/auth-context';
-import { toast } from 'sonner';
+import { toast } from '@/lib/utils/toast';
 import { UpdateUserByIdentifyDto } from '@/lib/types/user';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
+import { getRoleName, getDepartmentName } from '@/lib/utils/role';
+import { UserRole, Department } from '@/lib/types/auth';
 
 interface ProfileData {
-	userId: string;
+	id: string;
 	username: string;
 	email: string;
 	firstName: string;
@@ -23,6 +26,9 @@ interface ProfileData {
 	phoneNumber?: string;
 	role: string;
 	department: string;
+	createdAt: string;
+	updatedAt?: string;
+	isDeleted: boolean;
 }
 
 export default function SettingsPage() {
@@ -53,7 +59,7 @@ export default function SettingsPage() {
 
 			console.log('Profile API result:', result);
 
-			if (result && (result as unknown as ProfileData).userId) {
+			if (result && (result as unknown as ProfileData).id) {
 				const data = result as unknown as ProfileData;
 				setProfileData(data);
 				setFormData({
@@ -96,11 +102,7 @@ export default function SettingsPage() {
 				phoneNumber: formData.phoneNumber || undefined,
 			};
 
-			const result = await apiClient.put(
-				API_ENDPOINTS.USERS.IDENTIFY(profileData.userId),
-				updateData
-			);
-
+			const result = await apiClient.put(API_ENDPOINTS.USERS.IDENTIFY(profileData.id), updateData);
 			if (result.isSuccess) {
 				toast.success('Cập nhật thông tin thành công');
 				await loadProfile(); // Reload profile data
@@ -173,7 +175,8 @@ export default function SettingsPage() {
 						<div className="relative">
 							<div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 flex items-center justify-center shadow-xl shadow-blue-500/30 ring-4 ring-blue-50">
 								<span className="text-2xl font-bold text-white">
-									{profileData?.firstName?.charAt(0) || 'U'}
+									{profileData?.firstName?.charAt(0) + ' ' + profileData?.lastName?.charAt(0) ||
+										'U'}
 								</span>
 							</div>
 							<div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 border-4 border-white shadow-sm"></div>
@@ -185,10 +188,12 @@ export default function SettingsPage() {
 							<p className="text-sm text-gray-600 flex items-center gap-2">
 								<span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
 									<User className="h-3 w-3" />
-									{profileData?.role || 'User'}
+									{getRoleName(profileData?.role as unknown as UserRole)}
 								</span>
 								<span className="text-gray-400">•</span>
-								<span className="text-gray-600">{profileData?.department || 'Department'}</span>
+								<span className="text-gray-600">
+									{getDepartmentName(profileData?.department as unknown as Department)}
+								</span>
 							</p>
 						</div>
 					</div>
@@ -264,7 +269,7 @@ export default function SettingsPage() {
 												<div className="space-y-2">
 													<Label className="text-sm font-medium text-gray-700">Vai trò</Label>
 													<Input
-														value={profileData?.role || ''}
+														value={getRoleName(profileData?.role as unknown as UserRole)}
 														disabled
 														className="bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 border-gray-200 font-medium"
 													/>
@@ -272,7 +277,45 @@ export default function SettingsPage() {
 												<div className="space-y-2">
 													<Label className="text-sm font-medium text-gray-700">Phòng ban</Label>
 													<Input
-														value={profileData?.department || ''}
+														value={getDepartmentName(
+															profileData?.department as unknown as Department
+														)}
+														disabled
+														className="bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 border-gray-200 font-medium"
+													/>
+												</div>
+											</div>
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+												<div className="space-y-2">
+													<Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+														<Calendar className="h-4 w-4 text-blue-600" />
+														Ngày tạo
+													</Label>
+													<Input
+														value={
+															profileData?.createdAt
+																? format(new Date(profileData.createdAt), 'dd/MM/yyyy HH:mm', {
+																		locale: vi,
+																	})
+																: ''
+														}
+														disabled
+														className="bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 border-gray-200 font-medium"
+													/>
+												</div>
+												<div className="space-y-2">
+													<Label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+														<Calendar className="h-4 w-4 text-blue-600" />
+														Cập nhật lần cuối
+													</Label>
+													<Input
+														value={
+															profileData?.updatedAt
+																? format(new Date(profileData.updatedAt), 'dd/MM/yyyy HH:mm', {
+																		locale: vi,
+																	})
+																: 'Chưa cập nhật'
+														}
 														disabled
 														className="bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 border-gray-200 font-medium"
 													/>

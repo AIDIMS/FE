@@ -12,8 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PatientWithDetails } from '@/lib/types/patient';
 import { formatDate, formatGender } from '@/lib/utils/date';
 import { patientService } from '@/lib/api/services/patient.service';
-import { useNotification } from '@/lib/contexts/notification-context';
-import { toast } from 'sonner';
+import { toast } from '@/lib/utils/toast';
 
 interface PatientDetailDialogProps {
 	patientId: string | null;
@@ -24,7 +23,6 @@ interface PatientDetailDialogProps {
 export function PatientDetailDialog({ patientId, open, onOpenChange }: PatientDetailDialogProps) {
 	const [patient, setPatient] = useState<PatientWithDetails | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
-	const { addNotification } = useNotification();
 
 	useEffect(() => {
 		if (open && patientId) {
@@ -50,7 +48,7 @@ export function PatientDetailDialog({ patientId, open, onOpenChange }: PatientDe
 		} else if (!open) {
 			setPatient(null);
 		}
-	}, [open, patientId, onOpenChange, addNotification]);
+	}, [open, patientId, onOpenChange]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

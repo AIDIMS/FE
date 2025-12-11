@@ -16,6 +16,7 @@ import { patientService } from '@/lib/api/services/patient.service';
 import { dicomService } from '@/lib/api/services/dicom.service';
 import { TechnicianImagingOrder } from '@/lib/types/patient';
 import dynamic from 'next/dynamic';
+import { toast } from '@/lib/utils/toast';
 
 const DicomViewer = dynamic(() => import('@/components/technician/dicom-viewer'), {
 	ssr: false,
@@ -321,7 +322,7 @@ export default function TechnicianOrderDetail() {
 		const completedFiles = uploadedFiles.filter(f => f.status === 'completed' && f.processedFile);
 
 		if (completedFiles.length === 0) {
-			alert('Vui lòng upload ít nhất 1 file DICOM đã được xử lý');
+			toast.warning('Vui lòng upload ít nhất 1 file DICOM đã được xử lý');
 			return;
 		}
 
@@ -337,11 +338,11 @@ export default function TechnicianOrderDetail() {
 				}
 			}
 
-			alert('Hoàn thành chỉ định thành công!');
+			toast.success('Hoàn thành chỉ định thành công!');
 			router.push('/technician/worklist');
 		} catch (error) {
 			console.error('Error completing order:', error);
-			alert(
+			toast.error(
 				`Lỗi khi hoàn thành chỉ định: ${error instanceof Error ? error.message : 'Unknown error'}`
 			);
 		} finally {

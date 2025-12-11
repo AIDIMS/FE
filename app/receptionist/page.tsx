@@ -9,8 +9,7 @@ import { PatientSearch } from '@/components/receptionist/patient-search';
 import { WaitingQueue } from '@/components/receptionist/waiting-queue';
 import { AddPatientDialog, CheckInDialog } from '@/components/receptionist/dialogs';
 import { visitService } from '@/lib/api';
-import { useNotification } from '@/lib/contexts';
-import { NotificationType } from '@/lib/types/notification';
+import { toast } from '@/lib/utils/toast';
 
 interface PatientSearchResult extends Patient {
 	lastVisit?: string;
@@ -22,7 +21,6 @@ interface WaitingPatient extends PatientVisit {
 }
 
 export default function ReceptionistDashboard() {
-	const { addNotification } = useNotification();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchResults, setSearchResults] = useState<PatientSearchResult[]>([]);
 	const [waitingQueue, setWaitingQueue] = useState<WaitingPatient[]>([]);
@@ -44,17 +42,13 @@ export default function ReceptionistDashboard() {
 			if (result.isSuccess && result.data) {
 				const waitingVisits = result.data.items.filter(visit => visit.status === 'Waiting');
 
-				setWaitingQueue(waitingVisits as WaitingPatient[]);
+				setWaitingQueue(waitingVisits);
 			} else {
-				addNotification(
-					NotificationType.ERROR,
-					'Lỗi',
-					result.message || 'Không thể tải danh sách chờ khám'
-				);
+				toast.error('Lỗi', result.message || 'Không thể tải danh sách chờ khám');
 			}
 		} catch (error) {
 			console.error('Error loading waiting queue:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách chờ khám');
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải danh sách chờ khám');
 		} finally {
 			setIsLoadingQueue(false);
 		}

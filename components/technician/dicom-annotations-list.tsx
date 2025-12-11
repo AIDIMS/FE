@@ -22,7 +22,7 @@ interface BoundingBox {
 	id: string;
 	label: string;
 	confidence: number;
-	type: 'ai' | 'manual';
+	type: 'ai' | 'manual' | 'saved';
 	color: string;
 }
 
@@ -80,7 +80,11 @@ export default function DicomAnnotationsList({
 								<div className="flex items-center gap-1.5 mb-1">
 									<Square className="h-3 w-3" style={{ color: bbox.color }} />
 									<span className="text-xs text-slate-400">
-										{bbox.type === 'ai' ? 'AI Finding' : 'Manual Finding'}
+										{bbox.type === 'ai'
+											? 'AI Finding'
+											: bbox.type === 'saved'
+												? 'Saved Annotation'
+												: 'Manual Finding'}
 									</span>
 									{bbox.type === 'ai' && (
 										<span className="text-xs text-slate-500">

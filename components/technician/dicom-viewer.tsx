@@ -34,11 +34,13 @@ import DicomNotes, { Note } from './dicom-notes';
 import DicomAnnotationsList from './dicom-annotations-list';
 
 import { AiFinding, AiAnalysis } from '@/lib/api/services/ai-analysis.service';
+import { imageAnnotationService } from '@/lib/api/services/image-annotation.service';
 
 export interface DicomViewerProps {
 	file: File;
 	onClose: () => void;
 	aiAnalysis?: AiAnalysis | null;
+	instanceId?: string;
 }
 
 export interface DicomMetadata {
@@ -54,6 +56,7 @@ export interface DicomMetadata {
 	pixelSpacing?: number[];
 	windowWidth?: number;
 	windowCenter?: number;
+	sopInstanceUID?: string;
 }
 
 // Window/Level presets for common modalities
@@ -72,7 +75,7 @@ const WINDOW_LEVEL_PRESETS = {
 	default: [{ name: 'Default', window: 400, level: 50 }],
 };
 
-export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerProps) {
+export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: DicomViewerProps) {
 	const elementRef = useRef<HTMLDivElement>(null);
 	const cleanupRef = useRef<(() => void) | null>(null);
 	const renderingEngineId = 'technicianPreviewEngine';
@@ -120,7 +123,14 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 		canvasHeight: number;
 		color: string;
 		isEdited?: boolean; // Track if bbox has been manually edited
-		type: 'ai' | 'manual'; // Distinguish AI-generated vs manually drawn
+		type: 'ai' | 'manual' | 'saved'; // Distinguish AI-generated vs manually drawn vs saved annotations
+		// Original pixel coordinates for recalculation on zoom/pan (for saved annotations)
+		originalPixelCoords?: {
+			xMin: number;
+			yMin: number;
+			xMax: number;
+			yMax: number;
+		};
 	}
 	const [aiBoundingBoxes, setAiBoundingBoxes] = useState<AiBoundingBox[]>([]);
 	const [selectedBboxId, setSelectedBboxId] = useState<string | null>(null);
@@ -136,6 +146,92 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 	// Label editing for manual bboxes
 	const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
 	const [editingLabelText, setEditingLabelText] = useState<string>('');
+
+	// Load saved annotations on mount
+	useEffect(() => {
+		const loadSavedAnnotations = async () => {
+			if (!instanceId || !isReady) return;
+
+			try {
+				const savedAnnotations = await imageAnnotationService.getByInstanceId(instanceId);
+
+				// Convert saved annotations to bounding boxes
+				const savedBoxes: AiBoundingBox[] = [];
+
+				for (const annotation of savedAnnotations) {
+					if (annotation.annotationType === 'bounding_box') {
+						try {
+							const data = JSON.parse(annotation.annotationData);
+
+							// Get viewport for coordinate conversion
+							const renderingEngine = getRenderingEngine(renderingEngineId);
+							const viewport = renderingEngine?.getViewport(viewportId) as Types.IStackViewport;
+							if (!viewport) continue;
+
+							// Get image data for coordinate transformation
+							const imageData = viewport.getImageData();
+							const spacing = imageData.spacing || [1, 1, 1];
+							const origin = imageData.origin || [0, 0, 0];
+							const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+							// Convert image pixel to world coordinates
+							const imagePixelToWorld = (px: number, py: number): Types.Point3 => {
+								const worldX =
+									origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
+								const worldY =
+									origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
+								const worldZ =
+									origin[2] + direction[6] * px * spacing[0] + direction[7] * py * spacing[1];
+								return [worldX, worldY, worldZ];
+							};
+
+							// Convert to world coords
+							const worldTopLeft = imagePixelToWorld(data.xMin, data.yMin);
+							const worldBottomRight = imagePixelToWorld(data.xMax, data.yMax);
+
+							// Convert world coords to canvas coords
+							const canvasTopLeft = viewport.worldToCanvas(worldTopLeft);
+							const canvasBottomRight = viewport.worldToCanvas(worldBottomRight);
+
+							const canvasX = canvasTopLeft[0];
+							const canvasY = canvasTopLeft[1];
+							const canvasBoxWidth = canvasBottomRight[0] - canvasTopLeft[0];
+							const canvasBoxHeight = canvasBottomRight[1] - canvasTopLeft[1];
+
+							savedBoxes.push({
+								id: annotation.id,
+								label: data.label || 'Saved Annotation',
+								confidence: data.confidence || 1.0,
+								canvasX,
+								canvasY,
+								canvasWidth: canvasBoxWidth,
+								canvasHeight: canvasBoxHeight,
+								color: '#9333EA', // Purple for saved annotations
+								type: 'saved',
+								isEdited: false,
+								// Store original pixel coords for recalculation on zoom/pan
+								originalPixelCoords: {
+									xMin: data.xMin,
+									yMin: data.yMin,
+									xMax: data.xMax,
+									yMax: data.yMax,
+								},
+							});
+						} catch (error) {
+							console.error('Error parsing annotation:', error);
+						}
+					}
+				}
+
+				// Merge saved annotations with existing bounding boxes
+				setAiBoundingBoxes(prev => [...prev, ...savedBoxes]);
+			} catch (error) {
+				console.error('Error loading saved annotations:', error);
+			}
+		};
+
+		loadSavedAnnotations();
+	}, [instanceId, isReady, renderingEngineId, viewportId]);
 
 	useEffect(() => {
 		const objectURL: string | null = null;
@@ -321,6 +417,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 						const generalSeriesModule = metaData.get('generalSeriesModule', imageId);
 						const imagePlaneModule = metaData.get('imagePlaneModule', imageId);
 						const imagePixelModule = metaData.get('imagePixelModule', imageId);
+						const sopCommonModule = metaData.get('sopCommonModule', imageId);
 
 						const dicomMetadata: DicomMetadata = {
 							patientName: patientModule?.patientName,
@@ -335,6 +432,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 							pixelSpacing: imagePlaneModule?.pixelSpacing,
 							windowWidth: imagePixelModule?.windowWidth,
 							windowCenter: imagePixelModule?.windowCenter,
+							sopInstanceUID: sopCommonModule?.sopInstanceUID,
 						};
 
 						setMetadata(dicomMetadata);
@@ -743,14 +841,15 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 					});
 				});
 
-				// Update state with bounding boxes
-				setAiBoundingBoxes(boundingBoxes);
+				// Merge AI findings with existing saved annotations (preserve saved/manual boxes)
+				setAiBoundingBoxes(prev => {
+					const savedAndManual = prev.filter(box => box.type === 'saved' || box.type === 'manual');
+					return [...boundingBoxes, ...savedAndManual];
+				});
 			} catch (error) {
 				console.error('Error rendering AI findings:', error);
 			}
-		};
-
-		// Delay to ensure viewport is ready
+		}; // Delay to ensure viewport is ready
 		setTimeout(renderAiFindings, 500);
 	}, [isReady, aiAnalysis, renderingEngineId, viewportId, updateAnnotations]);
 
@@ -762,9 +861,45 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 			// Re-render bounding boxes when camera changes
 			const engine = getRenderingEngine(renderingEngineId);
 			const viewport = engine?.getViewport(viewportId) as Types.IStackViewport;
-			if (!viewport || !aiAnalysis?.findings) return;
+			if (!viewport) return;
+
+			const imageData = viewport.getImageData();
+			const spacing = imageData.spacing || [1, 1, 1];
+			const origin = imageData.origin || [0, 0, 0];
+			const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+			const imagePixelToWorld = (px: number, py: number): Types.Point3 => {
+				const worldX = origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
+				const worldY = origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
+				const worldZ = origin[2] + direction[6] * px * spacing[0] + direction[7] * py * spacing[1];
+				return [worldX, worldY, worldZ];
+			};
 
 			const updatedBoxes = aiBoundingBoxes.map(box => {
+				// Handle saved annotations with original pixel coords
+				if (box.type === 'saved' && box.originalPixelCoords) {
+					const { xMin, yMin, xMax, yMax } = box.originalPixelCoords;
+
+					const worldTopLeft = imagePixelToWorld(xMin, yMin);
+					const worldBottomRight = imagePixelToWorld(xMax, yMax);
+					const canvasTopLeft = viewport.worldToCanvas(worldTopLeft);
+					const canvasBottomRight = viewport.worldToCanvas(worldBottomRight);
+
+					return {
+						...box,
+						canvasX: canvasTopLeft[0],
+						canvasY: canvasTopLeft[1],
+						canvasWidth: canvasBottomRight[0] - canvasTopLeft[0],
+						canvasHeight: canvasBottomRight[1] - canvasTopLeft[1],
+					};
+				}
+
+				// Manual boxes don't need recalculation (they're already in canvas coords)
+				if (box.type === 'manual') return box;
+
+				// Handle AI boxes
+				if (!aiAnalysis?.findings) return box;
+
 				// Find the corresponding finding
 				const finding = aiAnalysis.findings.find(f => f.id === box.id);
 				if (!finding) return box;
@@ -810,24 +945,8 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 					};
 				}
 
-				const imageData = viewport.getImageData();
-				const spacing = imageData.spacing || [1, 1, 1];
-				const origin = imageData.origin || [0, 0, 0];
-				const direction = imageData.direction || [1, 0, 0, 0, 1, 0, 0, 0, 1];
-
-				const imagePixelToWorld = (px: number, py: number): Types.Point3 => {
-					const worldX =
-						origin[0] + direction[0] * px * spacing[0] + direction[1] * py * spacing[1];
-					const worldY =
-						origin[1] + direction[3] * px * spacing[0] + direction[4] * py * spacing[1];
-					const worldZ =
-						origin[2] + direction[6] * px * spacing[0] + direction[7] * py * spacing[1];
-					return [worldX, worldY, worldZ];
-				};
-
 				const worldTopLeft = imagePixelToWorld(pixelCoords.xMin, pixelCoords.yMin);
 				const worldBottomRight = imagePixelToWorld(pixelCoords.xMax, pixelCoords.yMax);
-
 				const canvasTopLeft = viewport.worldToCanvas(worldTopLeft);
 				const canvasBottomRight = viewport.worldToCanvas(worldBottomRight);
 
@@ -1110,7 +1229,12 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 				return;
 			}
 
-			// Convert canvas coords back to image pixels
+			// Check if we have instanceId
+			if (!instanceId) {
+				alert('Error: Cannot save annotations - Instance ID not found');
+				console.error('Instance ID is required to save annotations');
+				return;
+			} // Convert canvas coords back to image pixels and prepare for API
 			const updates = editedBoxes
 				.map(box => {
 					const topLeft = canvasToImagePixels(box.canvasX, box.canvasY);
@@ -1123,28 +1247,76 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 
 					return {
 						id: box.id,
+						label: box.label,
 						xMin: topLeft.x,
 						yMin: topLeft.y,
 						xMax: bottomRight.x,
 						yMax: bottomRight.y,
+						confidence: box.confidence,
+						type: box.type || 'ai',
 					};
 				})
-				.filter(Boolean);
+				.filter(Boolean) as Array<{
+				id: string;
+				label: string;
+				xMin: number;
+				yMin: number;
+				xMax: number;
+				yMax: number;
+				confidence: number;
+				type: string;
+			}>;
 
-			// TODO: Call API to save changes
-			// await aiAnalysisService.updateFindings(aiAnalysis.id, updates);
+			// Save each annotation to the database
+			const savedCount = { success: 0, failed: 0 };
+			for (const annotation of updates) {
+				try {
+					// Prepare annotation data as JSON string
+					const annotationData = JSON.stringify({
+						xMin: annotation.xMin,
+						yMin: annotation.yMin,
+						xMax: annotation.xMax,
+						yMax: annotation.yMax,
+						label: annotation.label,
+						confidence: annotation.confidence,
+						type: annotation.type,
+					});
 
-			// For now, just show success message
-			alert(`Successfully saved ${updates.length} bbox changes!\n\n(API integration pending)`);
+					// Create annotation in database
+					await imageAnnotationService.create({
+						instanceId: instanceId,
+						annotationType: 'bounding_box',
+						annotationData: annotationData,
+					});
 
-			// Mark as saved by removing isEdited flag
-			setAiBoundingBoxes(prev => prev.map(box => ({ ...box, isEdited: false })));
-			setSelectedBboxId(null);
+					savedCount.success++;
+				} catch (error) {
+					console.error(`Failed to save annotation ${annotation.id}:`, error);
+					savedCount.failed++;
+				}
+			}
+
+			// Show result
+			if (savedCount.success > 0) {
+				alert(
+					`Successfully saved ${savedCount.success} annotation(s)!${
+						savedCount.failed > 0 ? `\n${savedCount.failed} failed to save.` : ''
+					}`
+				);
+
+				// Mark as saved by removing isEdited flag
+				setAiBoundingBoxes(prev => prev.map(box => ({ ...box, isEdited: false })));
+				setSelectedBboxId(null);
+			} else {
+				alert('Failed to save annotations');
+			}
 		} catch (error) {
 			console.error('Error saving bbox changes:', error);
-			alert('Failed to save changes');
+			alert(
+				'Failed to save changes: ' + (error instanceof Error ? error.message : 'Unknown error')
+			);
 		}
-	}, [aiBoundingBoxes, canvasToImagePixels]);
+	}, [aiBoundingBoxes, canvasToImagePixels, instanceId]);
 
 	// Handle note dragging
 	const handleNoteMouseDown = useCallback(
@@ -1440,7 +1612,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis }: DicomViewerPr
 					{aiBoundingBoxes.some(box => box.isEdited) && (
 						<button
 							onClick={handleSaveBboxChanges}
-							className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+							className="z-50 ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
 						>
 							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path

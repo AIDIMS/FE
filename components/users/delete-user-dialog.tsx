@@ -12,8 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 import { userService } from '@/lib/api';
-import { NotificationType, UserListDto } from '@/lib/types';
-import { useNotification } from '@/lib/contexts';
+import { UserListDto } from '@/lib/types';
+import { toast } from '@/lib/utils/toast';
 
 interface DeleteUserDialogProps {
 	open: boolean;
@@ -25,7 +25,6 @@ interface DeleteUserDialogProps {
 export function DeleteUserDialog({ open, onOpenChange, onSuccess, user }: DeleteUserDialogProps) {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
-	const { addNotification } = useNotification();
 
 	const handleDelete = async () => {
 		if (!user) return;
@@ -58,11 +57,11 @@ export function DeleteUserDialog({ open, onOpenChange, onSuccess, user }: Delete
 	};
 
 	const handleShowError = (title: string, message: string) => {
-		addNotification(NotificationType.ERROR, title, message);
+		toast.error(title, message);
 	};
 
 	const handleShowSuccess = (title: string, message: string) => {
-		addNotification(NotificationType.SUCCESS, title, message);
+		toast.success(title, message);
 	};
 
 	if (!user) return null;

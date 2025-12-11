@@ -15,7 +15,6 @@ import {
 import { Clock, Users, FileText, Filter } from 'lucide-react';
 import { PatientVisit } from '@/lib/types/patient';
 import { visitService } from '@/lib/api/services/visit.service';
-import { getVietnamTime, parseUTCDate } from '@/lib/utils/date';
 import { userService } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserRole } from '@/lib/types';
@@ -81,15 +80,12 @@ export default function DoctorQueueDashboard() {
 				const visits = result.data.items
 					.filter(v => v.status?.toLowerCase() === 'waiting' && !v.isDeleted)
 					.map(v => {
-						const vietnamNow = getVietnamTime();
-						const createdAtUTC = parseUTCDate(v.createdAt);
-						const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
 						return {
 							...v,
 							patientGender: null,
 							patientDob: null,
 							patientPhone: null,
-							waitingTimeMinutes: Math.max(0, Math.floor(waitingMs / 60000)),
+							waitingTimeMinutes: 0,
 						};
 					}) as QueuePatient[];
 
@@ -105,7 +101,6 @@ export default function DoctorQueueDashboard() {
 		} finally {
 			setIsLoading(false);
 		}
-		 
 	}, [currentUser, isAdmin, selectedDoctorId]);
 
 	useEffect(() => {
@@ -130,9 +125,10 @@ export default function DoctorQueueDashboard() {
 	}, [currentUser, selectedDoctorId, isAdmin, loadQueue, loadDoctors]);
 
 	const getWaitingTime = (createdAt: string) => {
-		const vietnamNow = getVietnamTime();
-		const createdAtUTC = parseUTCDate(createdAt);
-		const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+		// Backend already returns Vietnam timezone (UTC+7)
+		const now = new Date();
+		const createdAtDate = new Date(createdAt);
+		const waitingMs = now.getTime() - createdAtDate.getTime();
 		const minutes = Math.max(0, Math.floor(waitingMs / 60000));
 		if (minutes < 60) return `${minutes} phút`;
 		const hours = Math.floor(minutes / 60);
@@ -291,10 +287,7 @@ export default function DoctorQueueDashboard() {
 								<div className="space-y-px bg-slate-100">
 									{queue.map((patient, index) => {
 										const age = calculateAge(patient.patientDob);
-										const vietnamNow = getVietnamTime();
-										const createdAtUTC = parseUTCDate(patient.createdAt);
-										const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
-										const waitingMinutes = Math.max(0, Math.floor(waitingMs / 60000));
+										const waitingMinutes = patient.waitingTimeMinutes;
 										return (
 											<div
 												key={patient.id}

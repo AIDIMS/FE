@@ -14,19 +14,6 @@ export function formatDate(dateString: string | null): string {
 	}
 }
 
-export function getVietnamTime(): Date {
-	// Convert current time to Vietnam timezone (UTC+7)
-	const now = new Date();
-	const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
-	const vietnamTime = new Date(utcTime + 7 * 3600000);
-	return vietnamTime;
-}
-
-export function parseUTCDate(dateString: string): Date {
-	// Parse UTC date string and return as Date object
-	return new Date(dateString);
-}
-
 export function formatGender(gender: string | null): string {
 	if (!gender) return 'N/A';
 	const genderMap: Record<string, string> = {

@@ -6,7 +6,6 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Camera, Search, Clock, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
-import { getVietnamTime, parseUTCDate } from '@/lib/utils/date';
 import {
 	Select,
 	SelectContent,
@@ -15,8 +14,7 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { imagingOrderService } from '@/lib/api';
-import { useNotification } from '@/lib/contexts';
-import { NotificationType } from '@/lib/types/notification';
+import { toast } from '@/lib/utils/toast';
 import { ImagingOrder as ImagingOrderType } from '@/lib/types/patient';
 
 interface ImagingOrder extends ImagingOrderType {
@@ -28,7 +26,6 @@ interface ImagingOrder extends ImagingOrderType {
 
 export default function TechnicianWorklist() {
 	const router = useRouter();
-	const { addNotification } = useNotification();
 	const [orders, setOrders] = useState<ImagingOrder[]>([]);
 	const [filteredOrders, setFilteredOrders] = useState<ImagingOrder[]>([]);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -48,19 +45,15 @@ export default function TechnicianWorklist() {
 				}));
 				setOrders(mappedOrders);
 			} else {
-				addNotification(
-					NotificationType.ERROR,
-					'Lỗi',
-					result.message || 'Không thể tải danh sách chỉ định'
-				);
+				toast.error('Lỗi', result.message || 'Không thể tải danh sách chỉ định');
 			}
 		} catch (error) {
 			console.error('Error loading orders:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách chỉ định');
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải danh sách chỉ định');
 		} finally {
 			setIsLoading(false);
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		 
 	}, []);
 
 	const filterOrders = useCallback(() => {
@@ -117,9 +110,10 @@ export default function TechnicianWorklist() {
 	};
 
 	const getWaitingTime = (createdAt: string) => {
-		const vietnamNow = getVietnamTime();
-		const createdAtUTC = parseUTCDate(createdAt);
-		const waitingMs = vietnamNow.getTime() - createdAtUTC.getTime();
+		// Backend already returns Vietnam timezone (UTC+7)
+		const now = new Date();
+		const createdAtDate = new Date(createdAt);
+		const waitingMs = now.getTime() - createdAtDate.getTime();
 		const minutes = Math.max(0, Math.floor(waitingMs / 60000));
 		if (minutes < 60) return `${minutes}m`;
 		const hours = Math.floor(minutes / 60);

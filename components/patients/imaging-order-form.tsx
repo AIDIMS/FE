@@ -14,8 +14,7 @@ import {
 import { ImagingOrder } from '@/lib/types/patient';
 import { Loader2 } from 'lucide-react';
 import { userService } from '@/lib/api';
-import { useNotification } from '@/lib/contexts';
-import { NotificationType } from '@/lib/types/notification';
+import { toast } from '@/lib/utils/toast';
 
 interface ImagingOrderFormProps {
 	visitId: string;
@@ -33,7 +32,6 @@ interface Doctor {
 }
 
 export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: ImagingOrderFormProps) {
-	const { addNotification } = useNotification();
 	const [isLoading, setIsLoading] = useState(false);
 	const [doctors, setDoctors] = useState<Doctor[]>([]);
 	const [formData, setFormData] = useState({
@@ -54,7 +52,7 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 			if (result.isSuccess && result.data?.items) {
 				// Filter doctors by role on frontend
 				const doctorList = result.data.items
-					.filter(user => user.role === 3)
+					.filter(user => user.role === 1)
 					.map(user => ({
 						id: user.id,
 						firstName: user.firstName,
@@ -64,13 +62,13 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 					}));
 				setDoctors(doctorList);
 			} else {
-				addNotification(NotificationType.ERROR, 'Lỗi', 'Không thể tải danh sách bác sĩ');
+				toast.error('Lỗi', 'Không thể tải danh sách bác sĩ');
 			}
 		} catch (error) {
-			console.error('Error loading doctors:', error);
-			addNotification(NotificationType.ERROR, 'Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
+			console.error('Error fetching doctors:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		 
 	}, []);
 
 	// Load doctors on component mount

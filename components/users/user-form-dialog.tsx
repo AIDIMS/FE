@@ -20,15 +20,8 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { userService } from '@/lib/api';
-import {
-	CreateUserDto,
-	UpdateUserDto,
-	UserListDto,
-	UserRole,
-	Department,
-	NotificationType,
-} from '@/lib/types';
-import { useNotification } from '@/lib/contexts';
+import { CreateUserDto, UpdateUserDto, UserListDto, UserRole, Department } from '@/lib/types';
+import { toast } from '@/lib/utils/toast';
 
 interface UserFormDialogProps {
 	readonly open: boolean;
@@ -53,8 +46,6 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState('');
-
-	const { addNotification } = useNotification();
 
 	useEffect(() => {
 		if (user) {
@@ -150,11 +141,11 @@ export function UserFormDialog({ open, onOpenChange, onSuccess, user }: UserForm
 	};
 
 	const handleShowError = (title: string, message: string) => {
-		addNotification(NotificationType.ERROR, title, message);
+		toast.error(title, message);
 	};
 
 	const handleShowSuccess = (title: string, message: string) => {
-		addNotification(NotificationType.SUCCESS, title, message);
+		toast.success(title, message);
 	};
 
 	return (
