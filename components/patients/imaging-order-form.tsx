@@ -52,7 +52,7 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 			if (result.isSuccess && result.data?.items) {
 				// Filter doctors by role on frontend
 				const doctorList = result.data.items
-					.filter(user => user.role === 1)
+					.filter(user => user.role === 3)
 					.map(user => ({
 						id: user.id,
 						firstName: user.firstName,
@@ -68,7 +68,6 @@ export function ImagingOrderForm({ visitId, order, onSubmit, onCancel }: Imaging
 			console.error('Error fetching doctors:', error);
 			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
 		}
-		 
 	}, []);
 
 	// Load doctors on component mount
