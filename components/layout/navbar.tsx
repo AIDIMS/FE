@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts';
 import { getRoleName } from '@/lib/utils/role';
+import { NotificationBell } from './notification-bell';
 
 interface NavbarProps {
 	readonly onSidebarToggle: () => void;
@@ -104,15 +105,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 			{/* Right side actions */}
 			<div className="flex flex-1 items-center justify-end gap-4">
 				{/* Notifications */}
-				<Button
-					variant="ghost"
-					size="icon"
-					className="relative text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-				>
-					<Bell className="h-5 w-5" />
-					<span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-red-500"></span>
-					<span className="sr-only">Thông báo</span>
-				</Button>
+				<NotificationBell />
 
 				{/* User menu */}
 				<div className="flex items-center gap-3">

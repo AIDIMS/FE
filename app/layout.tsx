@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider, NotificationProvider } from '@/lib/contexts';
-import { NotificationContainer } from '@/components/ui/notification-container';
 import { Toaster } from 'sonner';
 
 const inter = Inter({
@@ -27,7 +26,6 @@ export default function RootLayout({
 				<AuthProvider>
 					<NotificationProvider>
 						{children}
-						<NotificationContainer />
 						<Toaster position="top-right" richColors closeButton />
 					</NotificationProvider>
 				</AuthProvider>

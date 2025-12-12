@@ -9,4 +9,5 @@ export {
 	imageAnnotationService,
 	ImageAnnotationService,
 } from './services/image-annotation.service';
+export { notificationService, NotificationService } from './services/notification.service';
 export { API_CONFIG, API_ENDPOINTS } from './config';
