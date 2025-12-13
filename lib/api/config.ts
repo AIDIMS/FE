@@ -40,6 +40,13 @@ export const API_ENDPOINTS = {
 		DOWNLOAD: (instanceId: string) => `/Dicom/download/${instanceId}`,
 		PREVIEW: (instanceId: string) => `/Dicom/preview/${instanceId}`,
 	},
+	AI_ANALYSIS: {
+		BY_INSTANCE: (instanceId: string) => `/AiAnalysis/instance/${instanceId}`,
+		FINDINGS: (analysisId: string) => `/AiAnalysis/${analysisId}/findings`,
+	},
+	IMAGE_ANNOTATIONS: {
+		BY_INSTANCE: (instanceId: string) => `/ImageAnnotations/instance/${instanceId}`,
+	},
 	NOTIFICATIONS: {
 		BASE: '/Notifications',
 		MY_NOTIFICATIONS: '/Notifications/my-notifications',
