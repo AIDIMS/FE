@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Bell, User, ChevronRight, Check } from 'lucide-react';
+import { User, ChevronRight, Check } from 'lucide-react';
 import { SidebarTrigger } from './sidebar';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +20,7 @@ const breadcrumbMap: Record<string, string> = {
 	'/patients': 'Bệnh nhân',
 	'/visits': 'Ca khám',
 	'/records': 'Hồ sơ',
+	'/notifications': 'Thông báo',
 	'/settings': 'Cài đặt',
 	'/profile': 'Hồ sơ cá nhân',
 };

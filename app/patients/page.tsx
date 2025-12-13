@@ -39,6 +39,19 @@ export default function PatientsPage() {
 		'all'
 	);
 
+	// Calculate today's new patients count
+	const getTodayPatientsCount = () => {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		return patients.filter(patient => {
+			if (!patient.createdAt) return false;
+			const createdDate = new Date(patient.createdAt);
+			createdDate.setHours(0, 0, 0, 0);
+			return createdDate.getTime() === today.getTime();
+		}).length;
+	};
+
 	useEffect(() => {
 		loadPatients();
 	}, []);
@@ -235,7 +248,7 @@ export default function PatientsPage() {
 										<p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2">
 											Mới hôm nay
 										</p>
-										<p className="text-3xl font-bold text-green-900">0</p>
+										<p className="text-3xl font-bold text-green-900">{getTodayPatientsCount()}</p>
 										<p className="text-xs text-green-600 mt-1">Bệnh nhân mới</p>
 									</div>
 									<div className="h-12 w-12 rounded-2xl bg-green-600 flex items-center justify-center shadow-md">

@@ -287,7 +287,11 @@ export default function DoctorQueueDashboard() {
 								<div className="space-y-px bg-slate-100">
 									{queue.map((patient, index) => {
 										const age = calculateAge(patient.patientDob);
-										const waitingMinutes = patient.waitingTimeMinutes;
+										// Calculate waiting time in minutes
+										const now = new Date();
+										const createdAtDate = new Date(patient.createdAt);
+										const waitingMs = now.getTime() - createdAtDate.getTime();
+										const waitingMinutes = Math.max(0, Math.floor(waitingMs / 60000));
 										return (
 											<div
 												key={patient.id}

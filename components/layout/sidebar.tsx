@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-	LayoutDashboard,
 	Users,
 	Stethoscope,
 	UserPlus,
@@ -15,10 +14,10 @@ import {
 	LogOut,
 	Menu,
 	UserCog,
-	ClipboardList,
+	Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/contexts/auth-context';
 
 interface NavItem {
@@ -58,6 +57,12 @@ const navItems: NavItem[] = [
 		href: '/patients',
 		icon: <Users className="h-5 w-5" />,
 		roles: [0, 1, 2], // Admin, Doctor, Receptionist
+	},
+	{
+		title: 'Thông báo',
+		href: '/notifications',
+		icon: <Bell className="h-5 w-5" />,
+		roles: [0, 1, 2, 3], // All roles
 	},
 	{
 		title: 'Cài đặt',
