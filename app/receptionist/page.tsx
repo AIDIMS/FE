@@ -8,7 +8,7 @@ import { StatsCards } from '@/components/receptionist/stats-cards';
 import { PatientSearch } from '@/components/receptionist/patient-search';
 import { WaitingQueue } from '@/components/receptionist/waiting-queue';
 import { AddPatientDialog, CheckInDialog } from '@/components/receptionist/dialogs';
-import { visitService } from '@/lib/api';
+import { visitService, patientService } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 
 interface PatientSearchResult extends Patient {
@@ -64,38 +64,31 @@ export default function ReceptionistDashboard() {
 
 		setIsSearching(true);
 		try {
-			// Mock search - sẽ thay thế bằng API call
-			await new Promise(resolve => setTimeout(resolve, 500));
+			// Try to detect if query is a phone number (contains only digits)
+			const isPhoneNumber = /^\d+$/.test(query);
 
-			const mockResults: PatientSearchResult[] = [
-				{
-					id: 'p1',
-					patientCode: 'BN001',
-					fullName: 'Nguyễn Văn A',
-					dateOfBirth: '1990-01-15',
-					gender: 'male' as const,
-					phoneNumber: '0901234567',
-					address: '123 Đường ABC, Q1, TP.HCM',
-					lastVisit: '2025-11-10',
-					createdAt: new Date().toISOString(),
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					lastVisitDate: '2025-11-10',
-				},
-			].filter(
-				p =>
-					p.fullName.toLowerCase().includes(query.toLowerCase()) ||
-					p.patientCode.toLowerCase().includes(query.toLowerCase()) ||
-					p.phoneNumber?.includes(query)
+			const result = await patientService.getAll(
+				1,
+				50, // Get more results for search
+				isPhoneNumber ? undefined : query, // fullName
+				isPhoneNumber ? query : undefined // phoneNumber
 			);
 
-			setSearchResults(mockResults);
+			if (result.isSuccess && result.data) {
+				// Map the data to include lastVisit field if needed
+				const searchResults: PatientSearchResult[] = result.data.items.map(patient => ({
+					...patient,
+					lastVisit: patient.lastVisitDate || undefined,
+				}));
+				setSearchResults(searchResults);
+			} else {
+				toast.error('Lỗi', result.message || 'Không thể tìm kiếm bệnh nhân');
+				setSearchResults([]);
+			}
 		} catch (error) {
 			console.error('Error searching patients:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tìm kiếm bệnh nhân');
+			setSearchResults([]);
 		} finally {
 			setIsSearching(false);
 		}
