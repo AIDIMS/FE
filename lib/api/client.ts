@@ -190,9 +190,10 @@ export class ApiClient {
 
 			if (!response.ok) {
 				// Handle API error response
+				const apiErrorData = data as unknown as { message?: string; errors?: string[] };
 				const error: ApiError = {
-					message: data?.message || 'An error occurred',
-					errors: data?.errors,
+					message: apiErrorData?.message || 'An error occurred',
+					errors: apiErrorData?.errors,
 					statusCode: response.status,
 				};
 				throw error;
