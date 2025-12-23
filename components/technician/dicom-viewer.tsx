@@ -104,7 +104,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 		};
 	}
 	const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
-	const [showAnnotations, setShowAnnotations] = useState(true);
+	const [showAnnotations, setShowAnnotations] = useState(false); // Default to false - user must enable
 
 	const [notes, setNotes] = useState<Note[]>([]);
 	const [isNoteMode, setIsNoteMode] = useState(false);
@@ -147,10 +147,10 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 	const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
 	const [editingLabelText, setEditingLabelText] = useState<string>('');
 
-	// Load saved annotations on mount
+	// Load saved annotations when showAnnotations is enabled
 	useEffect(() => {
 		const loadSavedAnnotations = async () => {
-			if (!instanceId || !isReady) return;
+			if (!instanceId || !isReady || !showAnnotations) return;
 
 			try {
 				const savedAnnotations = await imageAnnotationService.getByInstanceId(instanceId);
@@ -231,7 +231,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 		};
 
 		loadSavedAnnotations();
-	}, [instanceId, isReady, renderingEngineId, viewportId]);
+	}, [instanceId, isReady, renderingEngineId, viewportId, showAnnotations]);
 
 	useEffect(() => {
 		const objectURL: string | null = null;
@@ -721,7 +721,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 
 	// Render AI findings as SVG overlay (bypass CornerstoneJS annotations that keep getting rejected)
 	useEffect(() => {
-		if (!isReady || !aiAnalysis?.findings || !elementRef.current) return;
+		if (!isReady || !aiAnalysis?.findings || !elementRef.current || !showAnnotations) return;
 
 		const renderAiFindings = async () => {
 			try {
@@ -851,7 +851,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 			}
 		}; // Delay to ensure viewport is ready
 		setTimeout(renderAiFindings, 500);
-	}, [isReady, aiAnalysis, renderingEngineId, viewportId, updateAnnotations]);
+	}, [isReady, aiAnalysis, renderingEngineId, viewportId, updateAnnotations, showAnnotations]);
 
 	// Update bounding boxes on viewport camera changes (zoom/pan)
 	useEffect(() => {
@@ -1549,6 +1549,13 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 						);
 					}
 					break;
+				case 'a':
+				case 'A':
+					if (!e.ctrlKey && !e.metaKey) {
+						e.preventDefault();
+						setShowAnnotations(prev => !prev);
+					}
+					break;
 			}
 		};
 
@@ -1659,6 +1666,8 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 							setSelectedBboxId(null);
 						}
 					}}
+					showAnnotations={showAnnotations}
+					onToggleAnnotations={() => setShowAnnotations(!showAnnotations)}
 				/>
 			</div>
 
@@ -1698,7 +1707,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 					onMouseDown={isDrawingBbox ? handleManualBboxMouseDown : undefined}
 				>
 					{/* SVG Overlay for AI Findings and Manual Bboxes */}
-					{isReady && (aiBoundingBoxes.length > 0 || currentDrawingBbox) && (
+					{isReady && showAnnotations && (aiBoundingBoxes.length > 0 || currentDrawingBbox) && (
 						<svg
 							className="absolute inset-0 w-full h-full z-10"
 							style={{ mixBlendMode: 'normal', pointerEvents: 'none' }}
