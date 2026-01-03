@@ -418,16 +418,18 @@ export default function VisitDetailPage() {
 
 		const statusConfig = {
 			pending: { label: 'Chờ thực hiện', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-			in_progress: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-			inprogress: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+			waiting: { label: 'Đang chờ', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+			in_progress: { label: 'Đang khám', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+			inprogress: { label: 'Đang khám', color: 'bg-blue-100 text-blue-800 border-blue-200' },
 			completed: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800 border-green-200' },
+			done: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800 border-green-200' },
 			cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-800 border-red-200' },
 		};
 		const config =
 			statusConfig[normalizedStatus as keyof typeof statusConfig] || statusConfig.pending;
 		return (
 			<span
-				className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold border ${config.color}`}
+				className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${config.color}`}
 			>
 				{config.label}
 			</span>
@@ -567,6 +569,7 @@ export default function VisitDetailPage() {
 						}}
 					>
 						<DialogContent className="w-[95vw] max-w-6xl h-[90vh] p-0 overflow-hidden bg-white gap-0">
+							<DialogTitle className="sr-only">Chi tiết ca khám trước</DialogTitle>
 							{isLoadingPreviousVisit ? (
 								<div className="flex flex-col items-center justify-center h-full">
 									<div className="relative mb-5">

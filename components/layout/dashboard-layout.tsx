@@ -12,7 +12,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
 	return (
-		<div className="flex h-screen overflow-hidden bg-background">
+		<div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
 			{/* Sidebar */}
 			<Sidebar mobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
 
@@ -22,7 +22,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 				<Navbar onSidebarToggle={() => setMobileSidebarOpen(true)} />
 
 				{/* Page content */}
-				<main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
+				<main className="flex-1 overflow-y-auto bg-[#F8FAFC] scrollbar-medical">{children}</main>
 			</div>
 		</div>
 	);

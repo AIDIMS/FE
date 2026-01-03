@@ -21,7 +21,7 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en">
+		<html lang="vi">
 			<body className={`${inter.variable} font-sans antialiased`}>
 				<AuthProvider>
 					<NotificationProvider>

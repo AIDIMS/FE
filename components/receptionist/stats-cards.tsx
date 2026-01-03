@@ -1,6 +1,5 @@
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Users, UserPlus } from 'lucide-react';
+import { Clock, Users, UserPlus, Activity } from 'lucide-react';
 
 interface StatsCardsProps {
 	waitingCount: number;
@@ -14,51 +13,54 @@ export function StatsCards({
 	newPatients = 3,
 }: StatsCardsProps) {
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-			<Card className="border border-slate-200 bg-white shadow-sm">
-				<CardContent className="p-6">
+		<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+			{/* Waiting Count */}
+			<div className="stat-card-primary">
+				<div className="relative z-10">
 					<div className="flex items-center justify-between">
 						<div>
-							<p className="text-slate-500 text-sm font-medium mb-1">Đang chờ</p>
-							<p className="text-4xl font-bold text-slate-900 mb-1">{waitingCount}</p>
-							<p className="text-slate-500 text-xs">bệnh nhân</p>
+							<p className="text-blue-100 text-sm font-medium mb-1">Đang chờ khám</p>
+							<p className="text-4xl font-bold mb-1">{waitingCount}</p>
+							<p className="text-blue-200 text-xs">bệnh nhân trong hàng đợi</p>
 						</div>
-						<div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-							<Clock className="h-7 w-7 text-slate-600" />
+						<div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+							<Clock className="h-7 w-7 text-white" />
 						</div>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 
-			<Card className="border border-slate-200 bg-white shadow-sm">
-				<CardContent className="p-6">
+			{/* Today Registered */}
+			<div className="stat-card-teal">
+				<div className="relative z-10">
 					<div className="flex items-center justify-between">
 						<div>
-							<p className="text-slate-500 text-sm font-medium mb-1">Đã đăng ký hôm nay</p>
-							<p className="text-4xl font-bold text-slate-900 mb-1">{todayRegistered}</p>
-							<p className="text-slate-500 text-xs">lượt khám</p>
+							<p className="text-teal-100 text-sm font-medium mb-1">Đã tiếp nhận</p>
+							<p className="text-4xl font-bold mb-1">{todayRegistered}</p>
+							<p className="text-teal-200 text-xs">lượt khám hôm nay</p>
 						</div>
-						<div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-							<Users className="h-7 w-7 text-slate-600" />
+						<div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+							<Users className="h-7 w-7 text-white" />
 						</div>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 
-			<Card className="border border-slate-200 bg-white shadow-sm">
-				<CardContent className="p-6">
+			{/* New Patients */}
+			<div className="stat-card-emerald">
+				<div className="relative z-10">
 					<div className="flex items-center justify-between">
 						<div>
-							<p className="text-slate-500 text-sm font-medium mb-1">Bệnh nhân mới</p>
-							<p className="text-4xl font-bold text-slate-900 mb-1">{newPatients}</p>
-							<p className="text-slate-500 text-xs">hôm nay</p>
+							<p className="text-emerald-100 text-sm font-medium mb-1">Bệnh nhân mới</p>
+							<p className="text-4xl font-bold mb-1">{newPatients}</p>
+							<p className="text-emerald-200 text-xs">đăng ký hôm nay</p>
 						</div>
-						<div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-							<UserPlus className="h-7 w-7 text-slate-600" />
+						<div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+							<UserPlus className="h-7 w-7 text-white" />
 						</div>
 					</div>
-				</CardContent>
-			</Card>
+				</div>
+			</div>
 		</div>
 	);
 }

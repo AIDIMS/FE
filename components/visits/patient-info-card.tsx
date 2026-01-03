@@ -20,8 +20,8 @@ export function PatientInfoCard({
 		<Card className="border border-slate-200 bg-white shadow-sm">
 			<CardHeader className="pb-3 border-b border-slate-100">
 				<div className="flex items-center gap-2">
-					<User className="h-4 w-4 text-slate-600" />
-					<CardTitle className="text-sm font-semibold text-slate-900">
+					<User className="h-4 w-4 text-slate-500" />
+					<CardTitle className="text-sm font-semibold text-slate-800">
 						Thông tin bệnh nhân
 					</CardTitle>
 				</div>

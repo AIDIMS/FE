@@ -23,6 +23,9 @@ const breadcrumbMap: Record<string, string> = {
 	'/notifications': 'Thông báo',
 	'/settings': 'Cài đặt',
 	'/profile': 'Hồ sơ cá nhân',
+	'/receptionist': 'Lễ tân',
+	'/doctor/queue': 'Hàng chờ khám',
+	'/technician/worklist': 'Danh sách chụp',
 };
 
 export function Navbar({ onSidebarToggle }: NavbarProps) {
@@ -75,6 +78,11 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 					label: 'Chi tiết hồ sơ',
 					href: currentPath,
 				});
+			} else if (currentPath.startsWith('/technician/orders/')) {
+				breadcrumbs.push({
+					label: 'Chi tiết chỉ định',
+					href: currentPath,
+				});
 			}
 		});
 
@@ -111,7 +119,7 @@ export function Navbar({ onSidebarToggle }: NavbarProps) {
 				{/* User menu */}
 				<div className="flex items-center gap-3">
 					<div className="hidden sm:flex items-center gap-2">
-						<div className="h-8 w-8 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-sm font-bold shrink-0">
+						<div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#0D47A1] to-[#1565C0] flex items-center justify-center text-white text-sm font-bold shrink-0">
 							{user?.firstName?.charAt(0)}
 							{user?.lastName?.charAt(0)}
 						</div>

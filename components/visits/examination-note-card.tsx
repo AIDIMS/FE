@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ClipboardList, Save, FileText } from 'lucide-react';
+import { ClipboardList, Save, FileText, Loader2 } from 'lucide-react';
 
 interface ExaminationNote {
 	diagnosis: string;
@@ -30,8 +30,8 @@ export function ExaminationNoteCard({
 			<CardHeader className="pb-4 border-b border-slate-200">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<ClipboardList className="h-4 w-4 text-slate-600" />
-						<CardTitle className="text-sm font-semibold text-slate-900">Phiếu khám bệnh</CardTitle>
+						<ClipboardList className="h-4 w-4 text-slate-500" />
+						<CardTitle className="text-sm font-semibold text-slate-800">Phiếu khám bệnh</CardTitle>
 					</div>
 					<Button
 						onClick={onSave}
@@ -39,32 +39,43 @@ export function ExaminationNoteCard({
 						size="sm"
 						className="bg-blue-600 hover:bg-blue-700 text-white"
 					>
-						<Save className="h-4 w-4 mr-2" />
-						{isSavingNote ? 'Đang lưu...' : 'Lưu'}
+						{isSavingNote ? (
+							<>
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								Đang lưu...
+							</>
+						) : (
+							<>
+								<Save className="h-4 w-4 mr-2" />
+								Lưu
+							</>
+						)}
 					</Button>
 				</div>
 			</CardHeader>
-			<CardContent className="p-6 space-y-6">
+			<CardContent className="p-5 space-y-5">
 				{/* Current Symptoms */}
 				<div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
 					<div className="flex items-start gap-2">
-						<FileText className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+						<FileText className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
 						<div className="flex-1">
-							<p className="text-xs font-semibold text-slate-700 mb-1">Lý do khám</p>
-							<p className="text-sm text-slate-900 leading-relaxed">{symptoms}</p>
+							<p className="text-xs font-medium text-slate-500 mb-1">Lý do khám</p>
+							<p className="text-sm text-slate-800 leading-relaxed">
+								{symptoms || 'Không có ghi nhận'}
+							</p>
 						</div>
 					</div>
 				</div>
 
 				{/* Diagnosis */}
 				<div className="space-y-2">
-					<Label htmlFor="diagnosis" className="text-sm font-semibold text-slate-900">
-						Chẩn đoán <span className="text-slate-400">*</span>
+					<Label htmlFor="diagnosis" className="text-sm font-medium text-slate-700">
+						Chẩn đoán <span className="text-red-500">*</span>
 					</Label>
 					<textarea
 						id="diagnosis"
 						rows={4}
-						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
+						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
 						placeholder="Nhập chẩn đoán bệnh..."
 						value={examinationNote.diagnosis}
 						onChange={e => onNoteChange({ ...examinationNote, diagnosis: e.target.value })}
@@ -73,13 +84,13 @@ export function ExaminationNoteCard({
 
 				{/* Treatment Plan */}
 				<div className="space-y-2">
-					<Label htmlFor="treatment" className="text-sm font-semibold text-slate-900">
-						Phương pháp điều trị <span className="text-slate-400">*</span>
+					<Label htmlFor="treatment" className="text-sm font-medium text-slate-700">
+						Phương pháp điều trị <span className="text-red-500">*</span>
 					</Label>
 					<textarea
 						id="treatment"
 						rows={4}
-						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
+						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
 						placeholder="Nhập phương pháp điều trị, đơn thuốc..."
 						value={examinationNote.treatment_plan}
 						onChange={e => onNoteChange({ ...examinationNote, treatment_plan: e.target.value })}
@@ -88,13 +99,13 @@ export function ExaminationNoteCard({
 
 				{/* Additional Notes */}
 				<div className="space-y-2">
-					<Label htmlFor="notes" className="text-sm font-semibold text-slate-900">
+					<Label htmlFor="notes" className="text-sm font-medium text-slate-700">
 						Ghi chú thêm
 					</Label>
 					<textarea
 						id="notes"
 						rows={3}
-						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
+						className="flex w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
 						placeholder="Ghi chú bổ sung..."
 						value={examinationNote.notes}
 						onChange={e => onNoteChange({ ...examinationNote, notes: e.target.value })}
