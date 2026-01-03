@@ -1,25 +1,36 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const publicRoutes = ['/auth/login', '/auth/register', '/forgot-password', '/'];
-const protectedRoutes = ['/dashboard', '/patients', '/records', '/settings', '/users'];
+// All protected routes (require authentication)
+const protectedRoutes = [
+	'/dashboard',
+	'/patients',
+	'/records',
+	'/settings',
+	'/users',
+	'/receptionist',
+	'/doctor',
+	'/technician',
+	'/visits',
+	'/notifications',
+];
 
 export function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	const token = request.cookies.get('accessToken')?.value;
 
+	// Check if route requires authentication
 	const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-	const isPublicRoute = publicRoutes.some(
-		route => pathname === route || pathname.startsWith(route)
-	);
 
+	// Redirect unauthenticated users to login
 	if (isProtectedRoute && !token) {
 		const url = new URL('/auth/login', request.url);
 		url.searchParams.set('redirect', pathname);
 		return NextResponse.redirect(url);
 	}
 
+	// Redirect authenticated users away from login page
 	if (token && pathname === '/auth/login') {
 		return NextResponse.redirect(new URL('/dashboard', request.url));
 	}

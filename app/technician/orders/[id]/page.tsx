@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { RoleGuard } from '@/components/auth/role-guard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Camera, CheckCircle2 } from 'lucide-react';
@@ -17,6 +18,7 @@ import { dicomService } from '@/lib/api/services/dicom.service';
 import { TechnicianImagingOrder } from '@/lib/types/patient';
 import dynamic from 'next/dynamic';
 import { toast } from '@/lib/utils/toast';
+import { UserRole } from '@/lib/types';
 
 const DicomViewer = dynamic(() => import('@/components/technician/dicom-viewer'), {
 	ssr: false,
@@ -360,98 +362,103 @@ export default function TechnicianOrderDetail() {
 			{previewFile && <DicomViewer file={previewFile} onClose={() => setPreviewFile(null)} />}
 
 			<DashboardLayout>
-				<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
-					<div className="px-6 py-8">
-						<OrderHeader
-							orderId={order.id}
-							priority={order.priority}
-							modality={order.modality_requested}
-							status={order.status}
-						/>
+				<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Technician]}>
+					<div className="w-full min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
+						<div className="px-6 py-8">
+							<OrderHeader
+								orderId={order.id}
+								priority={order.priority}
+								modality={order.modality_requested}
+								status={order.status}
+							/>
 
-						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-							{/* Cột trái: Thông tin */}
-							<div className="space-y-6">
-								<PatientInfoCard
-									patientName={order.patient_name}
-									patientCode={order.patient_code}
-									patientGender={order.patient_gender}
-									patientAge={order.patient_age}
-									patientDob={order.patient_dob}
-								/>
-								<OrderDetailsCard
-									modalityRequested={order.modality_requested}
-									bodyPartRequested={order.body_part_requested}
-									requestingDoctor={order.requesting_doctor}
-									createdAt={order.created_at}
-									reasonForStudy={order.reason_for_study}
-									notes={order.notes}
-								/>
-							</div>
+							<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+								{/* Cột trái: Thông tin */}
+								<div className="space-y-6">
+									<PatientInfoCard
+										patientName={order.patient_name}
+										patientCode={order.patient_code}
+										patientGender={order.patient_gender}
+										patientAge={order.patient_age}
+										patientDob={order.patient_dob}
+									/>
+									<OrderDetailsCard
+										modalityRequested={order.modality_requested}
+										bodyPartRequested={order.body_part_requested}
+										requestingDoctor={order.requesting_doctor}
+										createdAt={order.created_at}
+										reasonForStudy={order.reason_for_study}
+										notes={order.notes}
+									/>
+								</div>
 
-							{/* Cột phải: Upload */}
-							<div className="lg:col-span-2">
-								<Card className="border border-slate-200 bg-white shadow-lg">
-									<CardHeader className="border-b border-slate-200 pb-4">
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-2">
-												<Camera className="h-5 w-5 text-blue-600" />
-												<CardTitle className="text-base font-semibold text-slate-900">
-													Upload ảnh DICOM
-												</CardTitle>
+								{/* Cột phải: Upload */}
+								<div className="lg:col-span-2">
+									<Card className="border border-slate-200 bg-white shadow-lg">
+										<CardHeader className="border-b border-slate-200 pb-4">
+											<div className="flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<Camera className="h-5 w-5 text-blue-600" />
+													<CardTitle className="text-base font-semibold text-slate-900">
+														Upload ảnh DICOM
+													</CardTitle>
+												</div>
+												<div className="text-sm text-slate-500">
+													{uploadedFiles.filter(f => f.status === 'completed').length} /{' '}
+													{uploadedFiles.length} files
+												</div>
 											</div>
-											<div className="text-sm text-slate-500">
-												{uploadedFiles.filter(f => f.status === 'completed').length} /{' '}
-												{uploadedFiles.length} files
+										</CardHeader>
+										<CardContent className="p-6">
+											<FileUploadZone
+												isDragging={isDragging}
+												onDragEnter={handleDragEnter}
+												onDragLeave={handleDragLeave}
+												onDragOver={handleDragOver}
+												onDrop={handleDrop}
+												onFileInput={handleFileInput}
+											/>
+
+											{/* Component danh sách file có nút Preview */}
+											<UploadedFilesList
+												files={uploadedFiles}
+												onRemoveFile={removeFile}
+												onPreviewFile={file => setPreviewFile(file)}
+											/>
+
+											{/* Nút Action */}
+											<div className="mt-8 flex items-center justify-end gap-3">
+												<Button
+													onClick={() => router.push('/technician/worklist')}
+													variant="outline"
+												>
+													Hủy
+												</Button>
+												<Button
+													onClick={handleComplete}
+													disabled={
+														uploadedFiles.filter(f => f.status === 'completed').length === 0 ||
+														isProcessing
+													}
+													className="bg-emerald-600 hover:bg-emerald-700 text-white"
+												>
+													{isProcessing ? (
+														'Đang xử lý...'
+													) : (
+														<>
+															<CheckCircle2 className="h-4 w-4 mr-2" />
+															Hoàn thành
+														</>
+													)}
+												</Button>
 											</div>
-										</div>
-									</CardHeader>
-									<CardContent className="p-6">
-										<FileUploadZone
-											isDragging={isDragging}
-											onDragEnter={handleDragEnter}
-											onDragLeave={handleDragLeave}
-											onDragOver={handleDragOver}
-											onDrop={handleDrop}
-											onFileInput={handleFileInput}
-										/>
-
-										{/* Component danh sách file có nút Preview */}
-										<UploadedFilesList
-											files={uploadedFiles}
-											onRemoveFile={removeFile}
-											onPreviewFile={file => setPreviewFile(file)}
-										/>
-
-										{/* Nút Action */}
-										<div className="mt-8 flex items-center justify-end gap-3">
-											<Button onClick={() => router.push('/technician/worklist')} variant="outline">
-												Hủy
-											</Button>
-											<Button
-												onClick={handleComplete}
-												disabled={
-													uploadedFiles.filter(f => f.status === 'completed').length === 0 ||
-													isProcessing
-												}
-												className="bg-emerald-600 hover:bg-emerald-700 text-white"
-											>
-												{isProcessing ? (
-													'Đang xử lý...'
-												) : (
-													<>
-														<CheckCircle2 className="h-4 w-4 mr-2" />
-														Hoàn thành
-													</>
-												)}
-											</Button>
-										</div>
-									</CardContent>
-								</Card>
+										</CardContent>
+									</Card>
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
+				</RoleGuard>
 			</DashboardLayout>
 		</>
 	);

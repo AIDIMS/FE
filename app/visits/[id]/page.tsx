@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { RoleGuard } from '@/components/auth/role-guard';
 import { Button } from '@/components/ui/button';
 import { PatientVisit, ImagingOrder } from '@/lib/types/patient';
 import {
@@ -12,7 +13,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Stethoscope, FileText, Image, Loader2, Eye, ChevronLeft } from 'lucide-react';
+import { FileText, Eye, ChevronLeft } from 'lucide-react';
 import { ImagingOrderForm } from '@/components/patients/imaging-order-form';
 import { VisitHeader } from '@/components/visits/visit-header';
 import { PatientInfoCard } from '@/components/visits/patient-info-card';
@@ -23,6 +24,7 @@ import { DicomFilesCard } from '@/components/visits/dicom-files-card';
 import { visitService, imagingOrderService } from '@/lib/api';
 import { diagnosisService } from '@/lib/api/services/diagnosis.service';
 import { toast } from '@/lib/utils/toast';
+import { UserRole } from '@/lib/types';
 
 interface VisitDetail extends PatientVisit {
 	patientName: string;
@@ -481,324 +483,332 @@ export default function VisitDetailPage() {
 
 	return (
 		<DashboardLayout>
-			<div className="w-full min-h-screen bg-slate-50">
-				<div className="px-6 py-8">
-					<VisitHeader
-						patientName={visit.patientName}
-						patientCode={visit.patientCode}
-						visitDate={visit.createdAt}
-						doctorName={visit.doctorName}
-						status={visit.status}
-						onBack={() => router.back()}
-						getStatusBadge={getStatusBadge}
-					/>
-					<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-						{/* Left Column - Patient History */}
-						<div className="lg:col-span-3 space-y-4">
-							<PatientInfoCard
-								patientName={visit.patientName}
-								patientCode={visit.patientCode}
-								dateOfBirth={visit.patientDob}
-								gender={visit.patientGender}
-							/>{' '}
-							<PreviousVisitsCard
-								previousVisits={previousVisits}
-								onVisitClick={loadPreviousVisitDetail}
-							/>
+			<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Doctor]}>
+				<div className="w-full min-h-screen bg-slate-50">
+					<div className="px-6 py-8">
+						<VisitHeader
+							patientName={visit.patientName}
+							patientCode={visit.patientCode}
+							visitDate={visit.createdAt}
+							doctorName={visit.doctorName}
+							status={visit.status}
+							onBack={() => router.back()}
+							getStatusBadge={getStatusBadge}
+						/>
+						<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+							{/* Left Column - Patient History */}
+							<div className="lg:col-span-3 space-y-4">
+								<PatientInfoCard
+									patientName={visit.patientName}
+									patientCode={visit.patientCode}
+									dateOfBirth={visit.patientDob}
+									gender={visit.patientGender}
+								/>{' '}
+								<PreviousVisitsCard
+									previousVisits={previousVisits}
+									onVisitClick={loadPreviousVisitDetail}
+								/>
+							</div>
+
+							{/* Center Column - Examination Notes */}
+							<div className="lg:col-span-5">
+								<ExaminationNoteCard
+									symptoms={visit.symptoms || ''}
+									examinationNote={examinationNote}
+									isSavingNote={isSavingNote}
+									onNoteChange={setExaminationNote}
+									onSave={handleSaveExaminationNote}
+								/>
+							</div>
+							{/* Right Column - Imaging Orders */}
+							<div className="lg:col-span-4 space-y-6">
+								<ImagingOrdersCard
+									imagingOrders={imagingOrders}
+									onAddOrder={handleAddOrder}
+									onEditOrder={handleEditOrder}
+									onDeleteOrder={handleDeleteOrder}
+									onViewImages={handleViewImages}
+									getStatusBadge={getStatusBadge}
+								/>
+
+								{/* DICOM Files Card - Show when an order is selected */}
+								{selectedOrderForImages && <DicomFilesCard orderId={selectedOrderForImages.id} />}
+							</div>
 						</div>
 
-						{/* Center Column - Examination Notes */}
-						<div className="lg:col-span-5">
-							<ExaminationNoteCard
-								symptoms={visit.symptoms || ''}
-								examinationNote={examinationNote}
-								isSavingNote={isSavingNote}
-								onNoteChange={setExaminationNote}
-								onSave={handleSaveExaminationNote}
-							/>
-						</div>
-						{/* Right Column - Imaging Orders */}
-						<div className="lg:col-span-4 space-y-6">
-							<ImagingOrdersCard
-								imagingOrders={imagingOrders}
-								onAddOrder={handleAddOrder}
-								onEditOrder={handleEditOrder}
-								onDeleteOrder={handleDeleteOrder}
-								onViewImages={handleViewImages}
-								getStatusBadge={getStatusBadge}
-							/>
+						{/* Order Form Dialog */}
+						<Dialog open={isOrderFormOpen} onOpenChange={setIsOrderFormOpen}>
+							<DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+								<DialogHeader>
+									<DialogTitle>
+										{selectedOrder ? 'Sửa chỉ định chụp chiếu' : 'Thêm chỉ định chụp chiếu mới'}
+									</DialogTitle>
+									<DialogDescription>
+										{selectedOrder
+											? 'Cập nhật thông tin chỉ định chụp chiếu'
+											: 'Điền thông tin để thêm chỉ định chụp chiếu mới cho ca khám'}
+									</DialogDescription>
+								</DialogHeader>
+								<ImagingOrderForm
+									visitId={visitId}
+									order={selectedOrder}
+									onSubmit={handleSubmitOrder}
+									onCancel={() => {
+										setIsOrderFormOpen(false);
+										setSelectedOrder(null);
+									}}
+								/>
+							</DialogContent>
+						</Dialog>
 
-							{/* DICOM Files Card - Show when an order is selected */}
-							{selectedOrderForImages && <DicomFilesCard orderId={selectedOrderForImages.id} />}
-						</div>
-					</div>
-
-					{/* Order Form Dialog */}
-					<Dialog open={isOrderFormOpen} onOpenChange={setIsOrderFormOpen}>
-						<DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-							<DialogHeader>
-								<DialogTitle>
-									{selectedOrder ? 'Sửa chỉ định chụp chiếu' : 'Thêm chỉ định chụp chiếu mới'}
-								</DialogTitle>
-								<DialogDescription>
-									{selectedOrder
-										? 'Cập nhật thông tin chỉ định chụp chiếu'
-										: 'Điền thông tin để thêm chỉ định chụp chiếu mới cho ca khám'}
-								</DialogDescription>
-							</DialogHeader>
-							<ImagingOrderForm
-								visitId={visitId}
-								order={selectedOrder}
-								onSubmit={handleSubmitOrder}
-								onCancel={() => {
-									setIsOrderFormOpen(false);
-									setSelectedOrder(null);
-								}}
-							/>
-						</DialogContent>
-					</Dialog>
-
-					{/* Previous Visit Detail Dialog - Clean Minimal Style */}
-					<Dialog
-						open={isPreviousVisitDialogOpen}
-						onOpenChange={open => {
-							setIsPreviousVisitDialogOpen(open);
-							if (!open) {
-								setSelectedPreviousOrderId(null);
-							}
-						}}
-					>
-						<DialogContent className="w-[95vw] max-w-6xl h-[90vh] p-0 overflow-hidden bg-white gap-0">
-							<DialogTitle className="sr-only">Chi tiết ca khám trước</DialogTitle>
-							{isLoadingPreviousVisit ? (
-								<div className="flex flex-col items-center justify-center h-full">
-									<div className="relative mb-5">
-										<div className="w-12 h-12 border-3 border-slate-200 rounded-full"></div>
-										<div className="absolute top-0 left-0 w-12 h-12 border-3 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
-									</div>
-									<p className="text-slate-600 font-medium">Đang tải...</p>
-								</div>
-							) : selectedPreviousVisit ? (
-								<div className="flex flex-col h-full">
-									{/* Clean Header */}
-									<div className="border-b border-slate-200 shrink-0">
-										<div className="px-8 py-5 flex items-center justify-between">
-											<div>
-												<h1 className="text-xl font-semibold text-slate-900">Hồ sơ bệnh án</h1>
-												<p className="text-sm text-slate-500 mt-0.5">
-													Mã:{' '}
-													<span className="font-mono text-slate-700">
-														{selectedPreviousVisit.id.slice(0, 8).toUpperCase()}
-													</span>
-												</p>
-											</div>
-											<div className="flex items-center gap-6 text-sm">
-												<div className="text-right">
-													<p className="text-slate-500">Ngày khám</p>
-													<p className="font-medium text-slate-900">
-														{new Date(selectedPreviousVisit.visitDate).toLocaleDateString('vi-VN', {
-															day: '2-digit',
-															month: '2-digit',
-															year: 'numeric',
-														})}{' '}
-														-{' '}
-														{new Date(selectedPreviousVisit.visitDate).toLocaleTimeString('vi-VN', {
-															hour: '2-digit',
-															minute: '2-digit',
-														})}
-													</p>
-												</div>
-												<div className="w-px h-8 bg-slate-200"></div>
-												<div className="text-right">
-													<p className="text-slate-500">Bác sĩ</p>
-													<p className="font-medium text-slate-900">
-														{selectedPreviousVisit.doctorName || '—'}
-													</p>
-												</div>
-											</div>
+						{/* Previous Visit Detail Dialog - Clean Minimal Style */}
+						<Dialog
+							open={isPreviousVisitDialogOpen}
+							onOpenChange={open => {
+								setIsPreviousVisitDialogOpen(open);
+								if (!open) {
+									setSelectedPreviousOrderId(null);
+								}
+							}}
+						>
+							<DialogContent className="w-[95vw] max-w-6xl h-[90vh] p-0 overflow-hidden bg-white gap-0">
+								<DialogTitle className="sr-only">Chi tiết ca khám trước</DialogTitle>
+								{isLoadingPreviousVisit ? (
+									<div className="flex flex-col items-center justify-center h-full">
+										<div className="relative mb-5">
+											<div className="w-12 h-12 border-3 border-slate-200 rounded-full"></div>
+											<div className="absolute top-0 left-0 w-12 h-12 border-3 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
 										</div>
-										{/* Navigation */}
-										{selectedPreviousOrderId && (
-											<div className="px-8 py-2 bg-slate-50 border-t border-slate-100">
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() => setSelectedPreviousOrderId(null)}
-													className="h-7 px-2 text-slate-600 hover:text-slate-900"
-												>
-													<ChevronLeft className="h-4 w-4 mr-1" />
-													Quay lại hồ sơ
-												</Button>
-											</div>
-										)}
+										<p className="text-slate-600 font-medium">Đang tải...</p>
 									</div>
-
-									{/* Content Area */}
-									<div className="flex-1 min-h-0 bg-slate-50">
-										{selectedPreviousOrderId ? (
-											/* DICOM Viewer View */
-											<div className="h-full p-6 overflow-y-auto">
-												<DicomFilesCard orderId={selectedPreviousOrderId} />
-											</div>
-										) : (
-											/* Medical Record View */
-											<div className="h-full overflow-y-auto">
-												<div className="p-8">
-													<div className="grid grid-cols-12 gap-8">
-														{/* Left Column */}
-														<div className="col-span-12 lg:col-span-7 space-y-6">
-															{/* Symptoms */}
-															<section className="bg-white rounded-lg border border-slate-200">
-																<div className="px-5 py-4 border-b border-slate-100">
-																	<h2 className="font-semibold text-slate-900">Lý do đến khám</h2>
-																</div>
-																<div className="p-5">
-																	<p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-																		{selectedPreviousVisit.symptoms || 'Không có ghi nhận'}
-																	</p>
-																</div>
-															</section>
-
-															{/* Diagnosis */}
-															<section className="bg-white rounded-lg border border-slate-200">
-																<div className="px-5 py-4 border-b border-slate-100">
-																	<h2 className="font-semibold text-slate-900">
-																		Kết luận chẩn đoán
-																	</h2>
-																</div>
-																<div className="p-5">
-																	{selectedPreviousVisit.diagnosis ? (
-																		<div className="space-y-5">
-																			<div>
-																				<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-																					Chẩn đoán
-																				</p>
-																				<p className="text-slate-900 font-medium">
-																					{selectedPreviousVisit.diagnosis.finalDiagnosis}
-																				</p>
-																			</div>
-																			{selectedPreviousVisit.diagnosis.treatmentPlan && (
-																				<div className="pt-4 border-t border-slate-100">
-																					<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-																						Phác đồ điều trị
-																					</p>
-																					<p className="text-slate-700 whitespace-pre-wrap">
-																						{selectedPreviousVisit.diagnosis.treatmentPlan}
-																					</p>
-																				</div>
-																			)}
-																			{selectedPreviousVisit.diagnosis.notes && (
-																				<div className="pt-4 border-t border-slate-100">
-																					<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
-																						Ghi chú
-																					</p>
-																					<p className="text-slate-600 whitespace-pre-wrap">
-																						{selectedPreviousVisit.diagnosis.notes}
-																					</p>
-																				</div>
-																			)}
-																		</div>
-																	) : (
-																		<p className="text-slate-500 text-center py-6">
-																			Chưa có kết luận
-																		</p>
-																	)}
-																</div>
-															</section>
-														</div>
-
-														{/* Right Column - Imaging */}
-														<div className="col-span-12 lg:col-span-5">
-															<section className="bg-white rounded-lg border border-slate-200 sticky top-0 max-h-[calc(90vh-180px)] flex flex-col">
-																<div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-																	<h2 className="font-semibold text-slate-900">
-																		Chẩn đoán hình ảnh
-																	</h2>
-																	{selectedPreviousVisit.imagingOrders.length > 0 && (
-																		<span className="text-sm text-slate-500">
-																			{selectedPreviousVisit.imagingOrders.length} chỉ định
-																		</span>
-																	)}
-																</div>
-																<div className="p-4 overflow-y-auto flex-1">
-																	{selectedPreviousVisit.imagingOrders.length > 0 ? (
-																		<div className="space-y-2">
-																			{selectedPreviousVisit.imagingOrders.map((order, idx) => {
-																				const isCompleted =
-																					order.status.toLowerCase() === 'completed';
-																				return (
-																					<div
-																						key={order.id}
-																						className={`rounded-lg border p-4 transition-all ${
-																							isCompleted
-																								? 'border-slate-300 hover:border-slate-400 hover:bg-slate-50 cursor-pointer'
-																								: 'border-slate-200 bg-slate-50'
-																						}`}
-																						onClick={() => {
-																							if (isCompleted) {
-																								setSelectedPreviousOrderId(order.id);
-																							}
-																						}}
-																					>
-																						<div className="flex items-start gap-3">
-																							<span className="shrink-0 w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
-																								{idx + 1}
-																							</span>
-																							<div className="flex-1 min-w-0">
-																								<div className="flex items-start justify-between gap-2">
-																									<div>
-																										<p className="font-medium text-slate-900">
-																											{order.modalityRequested}
-																										</p>
-																										<p className="text-sm text-slate-500">
-																											{order.bodyPartRequested}
-																										</p>
-																									</div>
-																									{getStatusBadge(order.status)}
-																								</div>
-																								{order.reasonForStudy && (
-																									<p className="text-xs text-slate-500 mt-2 line-clamp-2">
-																										{order.reasonForStudy}
-																									</p>
-																								)}
-																								{isCompleted && (
-																									<div className="mt-3 pt-2 border-t border-slate-200 flex items-center gap-1.5 text-slate-600">
-																										<Eye className="h-3.5 w-3.5" />
-																										<span className="text-xs font-medium">
-																											Xem hình ảnh
-																										</span>
-																									</div>
-																								)}
-																							</div>
-																						</div>
-																					</div>
-																				);
-																			})}
-																		</div>
-																	) : (
-																		<p className="text-slate-500 text-center py-8">
-																			Không có chỉ định
-																		</p>
-																	)}
-																</div>
-															</section>
-														</div>
+								) : selectedPreviousVisit ? (
+									<div className="flex flex-col h-full">
+										{/* Clean Header */}
+										<div className="border-b border-slate-200 shrink-0">
+											<div className="px-8 py-5 flex items-center justify-between">
+												<div>
+													<h1 className="text-xl font-semibold text-slate-900">Hồ sơ bệnh án</h1>
+													<p className="text-sm text-slate-500 mt-0.5">
+														Mã:{' '}
+														<span className="font-mono text-slate-700">
+															{selectedPreviousVisit.id.slice(0, 8).toUpperCase()}
+														</span>
+													</p>
+												</div>
+												<div className="flex items-center gap-6 text-sm">
+													<div className="text-right">
+														<p className="text-slate-500">Ngày khám</p>
+														<p className="font-medium text-slate-900">
+															{new Date(selectedPreviousVisit.visitDate).toLocaleDateString(
+																'vi-VN',
+																{
+																	day: '2-digit',
+																	month: '2-digit',
+																	year: 'numeric',
+																}
+															)}{' '}
+															-{' '}
+															{new Date(selectedPreviousVisit.visitDate).toLocaleTimeString(
+																'vi-VN',
+																{
+																	hour: '2-digit',
+																	minute: '2-digit',
+																}
+															)}
+														</p>
+													</div>
+													<div className="w-px h-8 bg-slate-200"></div>
+													<div className="text-right">
+														<p className="text-slate-500">Bác sĩ</p>
+														<p className="font-medium text-slate-900">
+															{selectedPreviousVisit.doctorName || '—'}
+														</p>
 													</div>
 												</div>
 											</div>
-										)}
+											{/* Navigation */}
+											{selectedPreviousOrderId && (
+												<div className="px-8 py-2 bg-slate-50 border-t border-slate-100">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => setSelectedPreviousOrderId(null)}
+														className="h-7 px-2 text-slate-600 hover:text-slate-900"
+													>
+														<ChevronLeft className="h-4 w-4 mr-1" />
+														Quay lại hồ sơ
+													</Button>
+												</div>
+											)}
+										</div>
+
+										{/* Content Area */}
+										<div className="flex-1 min-h-0 bg-slate-50">
+											{selectedPreviousOrderId ? (
+												/* DICOM Viewer View */
+												<div className="h-full p-6 overflow-y-auto">
+													<DicomFilesCard orderId={selectedPreviousOrderId} />
+												</div>
+											) : (
+												/* Medical Record View */
+												<div className="h-full overflow-y-auto">
+													<div className="p-8">
+														<div className="grid grid-cols-12 gap-8">
+															{/* Left Column */}
+															<div className="col-span-12 lg:col-span-7 space-y-6">
+																{/* Symptoms */}
+																<section className="bg-white rounded-lg border border-slate-200">
+																	<div className="px-5 py-4 border-b border-slate-100">
+																		<h2 className="font-semibold text-slate-900">Lý do đến khám</h2>
+																	</div>
+																	<div className="p-5">
+																		<p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+																			{selectedPreviousVisit.symptoms || 'Không có ghi nhận'}
+																		</p>
+																	</div>
+																</section>
+
+																{/* Diagnosis */}
+																<section className="bg-white rounded-lg border border-slate-200">
+																	<div className="px-5 py-4 border-b border-slate-100">
+																		<h2 className="font-semibold text-slate-900">
+																			Kết luận chẩn đoán
+																		</h2>
+																	</div>
+																	<div className="p-5">
+																		{selectedPreviousVisit.diagnosis ? (
+																			<div className="space-y-5">
+																				<div>
+																					<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+																						Chẩn đoán
+																					</p>
+																					<p className="text-slate-900 font-medium">
+																						{selectedPreviousVisit.diagnosis.finalDiagnosis}
+																					</p>
+																				</div>
+																				{selectedPreviousVisit.diagnosis.treatmentPlan && (
+																					<div className="pt-4 border-t border-slate-100">
+																						<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+																							Phác đồ điều trị
+																						</p>
+																						<p className="text-slate-700 whitespace-pre-wrap">
+																							{selectedPreviousVisit.diagnosis.treatmentPlan}
+																						</p>
+																					</div>
+																				)}
+																				{selectedPreviousVisit.diagnosis.notes && (
+																					<div className="pt-4 border-t border-slate-100">
+																						<p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+																							Ghi chú
+																						</p>
+																						<p className="text-slate-600 whitespace-pre-wrap">
+																							{selectedPreviousVisit.diagnosis.notes}
+																						</p>
+																					</div>
+																				)}
+																			</div>
+																		) : (
+																			<p className="text-slate-500 text-center py-6">
+																				Chưa có kết luận
+																			</p>
+																		)}
+																	</div>
+																</section>
+															</div>
+
+															{/* Right Column - Imaging */}
+															<div className="col-span-12 lg:col-span-5">
+																<section className="bg-white rounded-lg border border-slate-200 sticky top-0 max-h-[calc(90vh-180px)] flex flex-col">
+																	<div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+																		<h2 className="font-semibold text-slate-900">
+																			Chẩn đoán hình ảnh
+																		</h2>
+																		{selectedPreviousVisit.imagingOrders.length > 0 && (
+																			<span className="text-sm text-slate-500">
+																				{selectedPreviousVisit.imagingOrders.length} chỉ định
+																			</span>
+																		)}
+																	</div>
+																	<div className="p-4 overflow-y-auto flex-1">
+																		{selectedPreviousVisit.imagingOrders.length > 0 ? (
+																			<div className="space-y-2">
+																				{selectedPreviousVisit.imagingOrders.map((order, idx) => {
+																					const isCompleted =
+																						order.status.toLowerCase() === 'completed';
+																					return (
+																						<div
+																							key={order.id}
+																							className={`rounded-lg border p-4 transition-all ${
+																								isCompleted
+																									? 'border-slate-300 hover:border-slate-400 hover:bg-slate-50 cursor-pointer'
+																									: 'border-slate-200 bg-slate-50'
+																							}`}
+																							onClick={() => {
+																								if (isCompleted) {
+																									setSelectedPreviousOrderId(order.id);
+																								}
+																							}}
+																						>
+																							<div className="flex items-start gap-3">
+																								<span className="shrink-0 w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
+																									{idx + 1}
+																								</span>
+																								<div className="flex-1 min-w-0">
+																									<div className="flex items-start justify-between gap-2">
+																										<div>
+																											<p className="font-medium text-slate-900">
+																												{order.modalityRequested}
+																											</p>
+																											<p className="text-sm text-slate-500">
+																												{order.bodyPartRequested}
+																											</p>
+																										</div>
+																										{getStatusBadge(order.status)}
+																									</div>
+																									{order.reasonForStudy && (
+																										<p className="text-xs text-slate-500 mt-2 line-clamp-2">
+																											{order.reasonForStudy}
+																										</p>
+																									)}
+																									{isCompleted && (
+																										<div className="mt-3 pt-2 border-t border-slate-200 flex items-center gap-1.5 text-slate-600">
+																											<Eye className="h-3.5 w-3.5" />
+																											<span className="text-xs font-medium">
+																												Xem hình ảnh
+																											</span>
+																										</div>
+																									)}
+																								</div>
+																							</div>
+																						</div>
+																					);
+																				})}
+																			</div>
+																		) : (
+																			<p className="text-slate-500 text-center py-8">
+																				Không có chỉ định
+																			</p>
+																		)}
+																	</div>
+																</section>
+															</div>
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
 									</div>
-								</div>
-							) : (
-								<div className="flex flex-col items-center justify-center h-full">
-									<FileText className="h-10 w-10 text-slate-300 mb-3" />
-									<p className="text-slate-500">Không tìm thấy hồ sơ</p>
-								</div>
-							)}
-						</DialogContent>
-					</Dialog>
+								) : (
+									<div className="flex flex-col items-center justify-center h-full">
+										<FileText className="h-10 w-10 text-slate-300 mb-3" />
+										<p className="text-slate-500">Không tìm thấy hồ sơ</p>
+									</div>
+								)}
+							</DialogContent>
+						</Dialog>
+					</div>
 				</div>
-			</div>
+			</RoleGuard>
 		</DashboardLayout>
 	);
 }

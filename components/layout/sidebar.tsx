@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
 		title: 'Tổng quan',
 		href: '/dashboard',
 		icon: <LayoutDashboard className="h-5 w-5" />,
-		roles: [0, 1, 2, 3],
+		roles: [0], // Admin only
 	},
 	{
 		title: 'Quản lý người dùng',
