@@ -14,20 +14,20 @@ interface WaitingQueueProps {
 }
 
 export function WaitingQueue({ waitingQueue, onAddPatient }: WaitingQueueProps) {
-	const getWaitingTime = (createdAt: string) => {
-		const createdTime = new Date(createdAt).getTime();
+	const getWaitingTime = (visit: WaitingPatient) => {
+		const waitingSince = new Date(visit.updatedAt || visit.createdAt).getTime();
 		const currentTime = new Date().getTime();
-		const diffMinutes = Math.floor(Math.abs(currentTime - createdTime) / 60000);
+		const diffMinutes = Math.floor(Math.abs(currentTime - waitingSince) / 60000);
 
 		if (diffMinutes < 60) return `${diffMinutes} phút`;
 		const hours = Math.floor(diffMinutes / 60);
 		return `${hours}h ${diffMinutes % 60}m`;
 	};
 
-	const getWaitingTimeClass = (createdAt: string) => {
-		const createdTime = new Date(createdAt).getTime();
+	const getWaitingTimeClass = (visit: WaitingPatient) => {
+		const waitingSince = new Date(visit.updatedAt || visit.createdAt).getTime();
 		const currentTime = new Date().getTime();
-		const diffMinutes = Math.floor(Math.abs(currentTime - createdTime) / 60000);
+		const diffMinutes = Math.floor(Math.abs(currentTime - waitingSince) / 60000);
 
 		if (diffMinutes >= 30) return 'text-red-600 bg-red-50';
 		if (diffMinutes >= 15) return 'text-amber-600 bg-amber-50';
@@ -120,9 +120,9 @@ export function WaitingQueue({ waitingQueue, onAddPatient }: WaitingQueueProps) 
 												Thời gian chờ
 											</p>
 											<span
-												className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold ${getWaitingTimeClass(visit.createdAt)}`}
+												className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold ${getWaitingTimeClass(visit)}`}
 											>
-												{getWaitingTime(visit.createdAt)}
+												{getWaitingTime(visit)}
 											</span>
 										</div>
 									</div>

@@ -42,7 +42,14 @@ export default function ReceptionistDashboard() {
 			const result = await visitService.getAll(1, 100);
 
 			if (result.isSuccess && result.data) {
-				const waitingVisits = result.data.items.filter(visit => visit.status === 'Waiting');
+				// Sort by updatedAt - patient may return from imaging
+				const waitingVisits = result.data.items
+					.filter(visit => visit.status === 'Waiting' && !visit.isDeleted)
+					.sort((a, b) => {
+						const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+						const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+						return dateA - dateB; // ASC - người vào hàng đợi trước xếp trước
+					});
 
 				setWaitingQueue(waitingVisits);
 			} else {

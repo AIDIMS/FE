@@ -19,17 +19,13 @@ import { userService } from '@/lib/api';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { UserRole } from '@/lib/types';
 
-interface QueuePatient extends PatientVisit {
-	patientGender: 'Male' | 'Female' | 'Other' | null;
-	patientDob: string | null;
-	patientPhone: string | null;
-	waitingTimeMinutes: number;
-}
+type QueuePatient = PatientVisit;
 
 export default function DoctorQueueDashboard() {
 	const router = useRouter();
 	const { user: currentUser } = useAuth();
 	const [queue, setQueue] = useState<QueuePatient[]>([]);
+	const [completedToday, setCompletedToday] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [currentTime, setCurrentTime] = useState<Date | null>(null);
 	const [selectedDoctorId, setSelectedDoctorId] = useState<string>('all');
@@ -72,20 +68,33 @@ export default function DoctorQueueDashboard() {
 			}
 
 			if (result?.isSuccess && result.data) {
-				const visits = result.data.items
-					.filter(v => v.status?.toLowerCase() === 'waiting' && !v.isDeleted)
-					.map(v => ({
-						...v,
-						patientGender: null,
-						patientDob: null,
-						patientPhone: null,
-						waitingTimeMinutes: 0,
-					})) as QueuePatient[];
+				const allVisits = result.data.items.filter(v => !v.isDeleted);
 
-				visits.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-				setQueue(visits);
+				// Filter waiting visits - sort by updatedAt (patient may return from imaging)
+				const waitingVisits = allVisits
+					.filter(v => v.status && v.status.toLowerCase() === 'waiting')
+					.sort((a, b) => {
+						const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+						const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+						return dateA - dateB; // ASC - người vào hàng đợi trước xếp trước
+					});
+
+				// Count completed visits today
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				const completedCount = allVisits.filter(v => {
+					if (!v.status || v.status.toLowerCase() !== 'completed') return false;
+					const updatedDate = v.updatedAt ? new Date(v.updatedAt) : null;
+					if (!updatedDate) return false;
+					updatedDate.setHours(0, 0, 0, 0);
+					return updatedDate.getTime() === today.getTime();
+				}).length;
+
+				setQueue(waitingVisits);
+				setCompletedToday(completedCount);
 			} else {
 				setQueue([]);
+				setCompletedToday(0);
 			}
 		} catch (error) {
 			console.error('Error loading queue:', error);
@@ -106,37 +115,24 @@ export default function DoctorQueueDashboard() {
 		loadQueue();
 	}, [currentUser, selectedDoctorId, isAdmin, loadQueue, loadDoctors]);
 
-	const getWaitingTime = (createdAt: string) => {
+	const getWaitingTime = (visit: PatientVisit) => {
 		const now = new Date();
-		const createdAtDate = new Date(createdAt);
-		const waitingMs = now.getTime() - createdAtDate.getTime();
+		const waitingSince = new Date(visit.updatedAt || visit.createdAt);
+		const waitingMs = now.getTime() - waitingSince.getTime();
 		const minutes = Math.max(0, Math.floor(waitingMs / 60000));
 		if (minutes < 60) return `${minutes} phút`;
 		const hours = Math.floor(minutes / 60);
 		return `${hours}h ${minutes % 60}m`;
 	};
 
-	const getWaitingMinutes = (createdAt: string) => {
+	const getWaitingMinutes = (visit: PatientVisit) => {
 		const now = new Date();
-		const createdAtDate = new Date(createdAt);
-		return Math.max(0, Math.floor((now.getTime() - createdAtDate.getTime()) / 60000));
+		const waitingSince = new Date(visit.updatedAt || visit.createdAt);
+		return Math.max(0, Math.floor((now.getTime() - waitingSince.getTime()) / 60000));
 	};
 
 	const handlePatientClick = (visitId: string) => {
 		router.push(`/visits/${visitId}`);
-	};
-
-	const calculateAge = (dob: string | null) => {
-		if (!dob) return null;
-		const birthDate = new Date(dob);
-		return new Date().getFullYear() - birthDate.getFullYear();
-	};
-
-	const getGenderLabel = (gender: string | null) => {
-		if (!gender) return '';
-		const genderLower = gender.toLowerCase();
-		const labels: Record<string, string> = { male: 'Nam', female: 'Nữ', other: 'Khác' };
-		return labels[genderLower] || gender;
 	};
 
 	return (
@@ -210,7 +206,7 @@ export default function DoctorQueueDashboard() {
 									<div>
 										<p className="text-amber-100 text-sm font-medium mb-1">Chờ lâu nhất</p>
 										<p className="text-3xl font-bold">
-											{queue.length > 0 ? getWaitingTime(queue[0].createdAt) : '0 phút'}
+											{queue.length > 0 ? getWaitingTime(queue[0]) : '0 phút'}
 										</p>
 										<p className="text-amber-200 text-xs mt-1">thời gian chờ</p>
 									</div>
@@ -224,7 +220,7 @@ export default function DoctorQueueDashboard() {
 								<div className="relative z-10 flex items-center justify-between">
 									<div>
 										<p className="text-emerald-100 text-sm font-medium mb-1">Đã khám hôm nay</p>
-										<p className="text-4xl font-bold">8</p>
+										<p className="text-4xl font-bold">{completedToday}</p>
 										<p className="text-emerald-200 text-xs mt-1">ca khám</p>
 									</div>
 									<div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -271,8 +267,7 @@ export default function DoctorQueueDashboard() {
 								) : (
 									<div className="divide-y divide-slate-100">
 										{queue.map((patient, index) => {
-											const age = calculateAge(patient.patientDob);
-											const waitingMinutes = getWaitingMinutes(patient.createdAt);
+											const waitingMinutes = getWaitingMinutes(patient);
 											const isUrgent = waitingMinutes >= 30;
 
 											return (
@@ -314,12 +309,12 @@ export default function DoctorQueueDashboard() {
 																</p>
 															</div>
 
-															{/* Demographics */}
+															{/* Doctor */}
 															<div>
 																<p className="text-sm text-slate-700 font-medium">
-																	{getGenderLabel(patient.patientGender)}
+																	{patient.assignedDoctorName || 'Chưa phân công'}
 																</p>
-																{age && <p className="text-xs text-slate-400">{age} tuổi</p>}
+																<p className="text-xs text-slate-400">Bác sĩ</p>
 															</div>
 
 															{/* Symptoms */}
