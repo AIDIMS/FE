@@ -16,6 +16,7 @@ import {
 	UserCog,
 	Bell,
 	LayoutDashboard,
+	Box,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -40,6 +41,12 @@ const navItems: NavItem[] = [
 		href: '/users',
 		icon: <UserCog className="h-5 w-5" />,
 		roles: [0],
+	},
+	{
+		title: 'Quản lý Annotations',
+		href: '/annotations',
+		icon: <Box className="h-5 w-5" />,
+		roles: [0], // Admin only
 	},
 	{
 		title: 'Lễ tân',

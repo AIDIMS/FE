@@ -1,4 +1,5 @@
 import { apiClient } from '../client';
+import { ApiResult, PaginatedResult } from '@/lib/types';
 
 export interface CreateImageAnnotationDto {
 	instanceId: string; // OrthancInstanceId or SopInstanceUid
@@ -12,10 +13,34 @@ export interface ImageAnnotationDto {
 	annotationType: string;
 	annotationData: string;
 	createdAt: string;
+	updatedAt: string;
 	createdBy?: string;
+	instanceSopInstanceUid?: string;
+}
+
+export interface AnnotationData {
+	xMin: number;
+	yMin: number;
+	xMax: number;
+	yMax: number;
+	label: string;
+	confidence: number;
 }
 
 export class ImageAnnotationService {
+	/**
+	 * Get all annotations with pagination
+	 */
+	async getAll(
+		pageNumber: number = 1,
+		pageSize: number = 10
+	): Promise<ApiResult<PaginatedResult<ImageAnnotationDto>>> {
+		const response = await apiClient.get<PaginatedResult<ImageAnnotationDto>>(
+			`/ImageAnnotations?PageNumber=${pageNumber}&PageSize=${pageSize}`
+		);
+		return response;
+	}
+
 	/**
 	 * Create a new image annotation (label or bounding box)
 	 */

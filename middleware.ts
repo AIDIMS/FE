@@ -13,6 +13,7 @@ const protectedRoutes = [
 	'/technician',
 	'/visits',
 	'/notifications',
+	'/annotations',
 ];
 
 export function middleware(request: NextRequest) {
