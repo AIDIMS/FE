@@ -1,7 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Bell, Check, X } from 'lucide-react';
+import {
+	Bell,
+	Check,
+	X,
+	ExternalLink,
+	Stethoscope,
+	ClipboardList,
+	BrainCircuit,
+	CheckCircle,
+	Megaphone,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
@@ -15,34 +25,36 @@ import { NotificationDto, NotificationType } from '@/lib/types/notification';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-const getNotificationIcon = (type: NotificationType) => {
+// Helper function to render icon based on notification type
+const renderNotificationIcon = (type: NotificationType, className: string) => {
 	switch (type) {
 		case NotificationType.VisitCreated:
-			return '🏥';
+			return <Stethoscope className={className} />;
 		case NotificationType.ImagingOrderAssigned:
-			return '📋';
+			return <ClipboardList className={className} />;
 		case NotificationType.AiAnalysisCompleted:
-			return '🤖';
+			return <BrainCircuit className={className} />;
 		case NotificationType.DiagnosisCompleted:
-			return '✅';
+			return <CheckCircle className={className} />;
 		default:
-			return '📢';
+			return <Megaphone className={className} />;
 	}
 };
 
 const getNotificationColor = (type: NotificationType) => {
 	switch (type) {
 		case NotificationType.VisitCreated:
-			return 'bg-blue-100 text-blue-800 border-blue-200';
+			return 'bg-blue-100 text-blue-600 border-blue-200';
 		case NotificationType.ImagingOrderAssigned:
-			return 'bg-orange-100 text-orange-800 border-orange-200';
+			return 'bg-purple-100 text-purple-600 border-purple-200';
 		case NotificationType.AiAnalysisCompleted:
-			return 'bg-purple-100 text-purple-800 border-purple-200';
+			return 'bg-green-100 text-green-600 border-green-200';
 		case NotificationType.DiagnosisCompleted:
-			return 'bg-green-100 text-green-800 border-green-200';
+			return 'bg-emerald-100 text-emerald-600 border-emerald-200';
 		default:
-			return 'bg-gray-100 text-gray-800 border-gray-200';
+			return 'bg-gray-100 text-gray-600 border-gray-200';
 	}
 };
 
@@ -57,9 +69,9 @@ const NotificationItem: React.FC<{
 			onClick={onClick}
 		>
 			<div
-				className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl border ${getNotificationColor(notification.type)}`}
+				className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border ${getNotificationColor(notification.type)}`}
 			>
-				{getNotificationIcon(notification.type)}
+				{renderNotificationIcon(notification.type, 'h-5 w-5')}
 			</div>
 			<div className="flex-1 min-w-0">
 				<div className="flex items-start justify-between gap-2">
@@ -162,6 +174,19 @@ export const NotificationBell: React.FC = () => {
 						</div>
 					)}
 				</ScrollArea>
+
+				{/* Footer - View All Link */}
+				<div className="p-3 border-t border-slate-200 bg-slate-50">
+					<Link href="/notifications">
+						<Button
+							variant="ghost"
+							className="w-full justify-center text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+						>
+							Xem tất cả thông báo
+							<ExternalLink className="h-3.5 w-3.5 ml-2" />
+						</Button>
+					</Link>
+				</div>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

@@ -1,5 +1,4 @@
 import { apiClient } from '../client';
-import { API_CONFIG } from '../config';
 import { ApiResult } from '@/lib/types/api';
 import {
 	NotificationDto,
@@ -8,13 +7,13 @@ import {
 } from '@/lib/types/notification';
 
 export class NotificationService {
-	private readonly baseUrl = `${API_CONFIG.BASE_URL}/notifications`;
+	private readonly baseUrl = '/Notifications';
 
 	async getMyNotifications(
 		pageNumber = 1,
 		pageSize = 20
-	): Promise<ApiResult<NotificationListResponse>> {
-		return apiClient.get<NotificationListResponse>(
+	): Promise<ApiResult<NotificationDto[] | NotificationListResponse>> {
+		return apiClient.get<NotificationDto[] | NotificationListResponse>(
 			`${this.baseUrl}/my-notifications?pageNumber=${pageNumber}&pageSize=${pageSize}`
 		);
 	}

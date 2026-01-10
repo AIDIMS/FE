@@ -177,13 +177,23 @@ export class ApiClient {
 
 			clearTimeout(timeoutId);
 
-			const data = await response.json();
+			// Check if response has content before parsing JSON
+			const contentType = response.headers.get('content-type');
+			const hasJsonContent = contentType?.includes('application/json');
+
+			// Handle empty responses (204 No Content, etc.)
+			let data: T | null = null;
+			if (hasJsonContent) {
+				const text = await response.text();
+				data = text ? JSON.parse(text) : null;
+			}
 
 			if (!response.ok) {
 				// Handle API error response
+				const apiErrorData = data as unknown as { message?: string; errors?: string[] };
 				const error: ApiError = {
-					message: data.message || 'An error occurred',
-					errors: data.errors,
+					message: apiErrorData?.message || 'An error occurred',
+					errors: apiErrorData?.errors,
 					statusCode: response.status,
 				};
 				throw error;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -11,6 +11,8 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import type { Patient } from '@/lib/types/patient';
+import { userService, visitService } from '@/lib/api';
+import { toast } from '@/lib/utils/toast';
 
 interface CheckInFormProps {
 	patient: Patient;
@@ -25,6 +27,12 @@ export interface CheckInFormData {
 	status: 'waiting' | 'in_progress' | 'completed' | 'cancelled';
 }
 
+interface Doctor {
+	id: string;
+	firstName: string;
+	lastName: string;
+}
+
 export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInFormProps) {
 	const [formData, setFormData] = useState<CheckInFormData>({
 		patientId: patient.id,
@@ -34,14 +42,32 @@ export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInForm
 	});
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [doctors, setDoctors] = useState<Doctor[]>([]);
+	const [isLoadingDoctors, setIsLoadingDoctors] = useState(false);
 
-	// Mock doctors list
-	const doctors = [
-		{ id: '1', name: 'BS. Nguyễn Văn A' },
-		{ id: '2', name: 'BS. Trần Thị B' },
-		{ id: '3', name: 'BS. Lê Văn C' },
-		{ id: '4', name: 'BS. Phạm Thị D' },
-	];
+	// Load doctors on mount
+	useEffect(() => {
+		loadDoctors();
+	}, []);
+
+	const loadDoctors = async () => {
+		try {
+			setIsLoadingDoctors(true);
+			// Get users with role 1 (Doctor)
+			const result = await userService.getAll(1, 100, 1);
+
+			if (result.isSuccess && result.data) {
+				setDoctors(result.data.items);
+			} else {
+				toast.error('Lỗi', result.message || 'Không thể tải danh sách bác sĩ');
+			}
+		} catch (error) {
+			console.error('Error loading doctors:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tải danh sách bác sĩ');
+		} finally {
+			setIsLoadingDoctors(false);
+		}
+	};
 
 	const validateForm = () => {
 		const newErrors: Record<string, string> = {};
@@ -64,11 +90,22 @@ export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInForm
 		setIsSubmitting(true);
 
 		try {
-			// Simulate API call
-			await new Promise(resolve => setTimeout(resolve, 800));
-			onSubmit(formData);
+			// Create patient visit using API
+			const result = await visitService.create({
+				patientId: formData.patientId,
+				assignedDoctorId: formData.assignedDoctorId || null,
+				symptoms: formData.symptoms || null,
+			});
+
+			if (result.isSuccess && result.data) {
+				toast.success('Thành công', 'Tạo phiếu khám thành công');
+				onSubmit(formData);
+			} else {
+				toast.error('Lỗi', result.message || 'Không thể tạo phiếu khám');
+			}
 		} catch (error) {
 			console.error('Check-in error:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tạo phiếu khám');
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -100,14 +137,17 @@ export default function CheckInForm({ patient, onSubmit, onCancel }: CheckInForm
 				<Select
 					value={formData.assignedDoctorId || undefined}
 					onValueChange={value => setFormData({ ...formData, assignedDoctorId: value })}
+					disabled={isLoadingDoctors}
 				>
 					<SelectTrigger id="doctor">
-						<SelectValue placeholder="Chọn bác sĩ hoặc để trống..." />
+						<SelectValue
+							placeholder={isLoadingDoctors ? 'Đang tải...' : 'Chọn bác sĩ hoặc để trống...'}
+						/>
 					</SelectTrigger>
 					<SelectContent>
 						{doctors.map(doctor => (
 							<SelectItem key={doctor.id} value={doctor.id}>
-								{doctor.name}
+								BS. {doctor.lastName} {doctor.firstName}
 							</SelectItem>
 						))}
 					</SelectContent>

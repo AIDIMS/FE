@@ -104,7 +104,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 		};
 	}
 	const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
-	const [showAnnotations, setShowAnnotations] = useState(true);
+	const [showAnnotations, setShowAnnotations] = useState(false); // Default to false - user must enable
 
 	const [notes, setNotes] = useState<Note[]>([]);
 	const [isNoteMode, setIsNoteMode] = useState(false);
@@ -147,12 +147,17 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 	const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
 	const [editingLabelText, setEditingLabelText] = useState<string>('');
 
-	// Load saved annotations on mount
+	// Track if annotations have been loaded already
+	const annotationsLoadedRef = useRef(false);
+
+	// Load saved annotations once when viewer is ready (not dependent on showAnnotations)
 	useEffect(() => {
 		const loadSavedAnnotations = async () => {
-			if (!instanceId || !isReady) return;
+			// Only load once
+			if (!instanceId || !isReady || annotationsLoadedRef.current) return;
 
 			try {
+				annotationsLoadedRef.current = true;
 				const savedAnnotations = await imageAnnotationService.getByInstanceId(instanceId);
 
 				// Convert saved annotations to bounding boxes
@@ -223,8 +228,10 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 					}
 				}
 
-				// Merge saved annotations with existing bounding boxes
-				setAiBoundingBoxes(prev => [...prev, ...savedBoxes]);
+				// Only add saved annotations if we found any
+				if (savedBoxes.length > 0) {
+					setAiBoundingBoxes(prev => [...prev, ...savedBoxes]);
+				}
 			} catch (error) {
 				console.error('Error loading saved annotations:', error);
 			}
@@ -719,15 +726,23 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 		}
 	}, [isReady, isNoteMode, createNote]);
 
+	// Track if AI findings have been loaded already
+	const aiFindingsLoadedRef = useRef(false);
+
 	// Render AI findings as SVG overlay (bypass CornerstoneJS annotations that keep getting rejected)
+	// This runs once when viewer is ready, not dependent on showAnnotations
 	useEffect(() => {
 		if (!isReady || !aiAnalysis?.findings || !elementRef.current) return;
+
+		// Only load AI findings once
+		if (aiFindingsLoadedRef.current) return;
 
 		const renderAiFindings = async () => {
 			try {
 				const element = elementRef.current;
 				if (!element) return;
 
+				aiFindingsLoadedRef.current = true;
 				const boundingBoxes: AiBoundingBox[] = [];
 
 				// Get viewport for coordinate conversion
@@ -842,10 +857,14 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 				});
 
 				// Merge AI findings with existing saved annotations (preserve saved/manual boxes)
-				setAiBoundingBoxes(prev => {
-					const savedAndManual = prev.filter(box => box.type === 'saved' || box.type === 'manual');
-					return [...boundingBoxes, ...savedAndManual];
-				});
+				if (boundingBoxes.length > 0) {
+					setAiBoundingBoxes(prev => {
+						const savedAndManual = prev.filter(
+							box => box.type === 'saved' || box.type === 'manual'
+						);
+						return [...boundingBoxes, ...savedAndManual];
+					});
+				}
 			} catch (error) {
 				console.error('Error rendering AI findings:', error);
 			}
@@ -1549,6 +1568,13 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 						);
 					}
 					break;
+				case 'a':
+				case 'A':
+					if (!e.ctrlKey && !e.metaKey) {
+						e.preventDefault();
+						setShowAnnotations(prev => !prev);
+					}
+					break;
 			}
 		};
 
@@ -1659,6 +1685,8 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 							setSelectedBboxId(null);
 						}
 					}}
+					showAnnotations={showAnnotations}
+					onToggleAnnotations={() => setShowAnnotations(!showAnnotations)}
 				/>
 			</div>
 
@@ -1698,7 +1726,7 @@ export default function DicomViewer({ file, onClose, aiAnalysis, instanceId }: D
 					onMouseDown={isDrawingBbox ? handleManualBboxMouseDown : undefined}
 				>
 					{/* SVG Overlay for AI Findings and Manual Bboxes */}
-					{isReady && (aiBoundingBoxes.length > 0 || currentDrawingBbox) && (
+					{isReady && showAnnotations && (aiBoundingBoxes.length > 0 || currentDrawingBbox) && (
 						<svg
 							className="absolute inset-0 w-full h-full z-10"
 							style={{ mixBlendMode: 'normal', pointerEvents: 'none' }}

@@ -11,10 +11,20 @@ import {
 export class UserService {
 	async getAll(
 		pageNumber: number = 1,
-		pageSize: number = 10
+		pageSize: number = 10,
+		role?: number
 	): Promise<ApiResult<PaginatedResult<UserListDto>>> {
+		const params = new URLSearchParams({
+			pageNumber: pageNumber.toString(),
+			pageSize: pageSize.toString(),
+		});
+
+		if (role !== undefined) {
+			params.append('role', role.toString());
+		}
+
 		return apiClient.get<PaginatedResult<UserListDto>>(
-			`${API_ENDPOINTS.USERS.BASE}?pageNumber=${pageNumber}&pageSize=${pageSize}`
+			`${API_ENDPOINTS.USERS.BASE}?${params.toString()}`
 		);
 	}
 

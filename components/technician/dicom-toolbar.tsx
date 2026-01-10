@@ -13,6 +13,8 @@ import {
 	Info,
 	Square,
 	Pin,
+	Eye,
+	EyeOff,
 } from 'lucide-react';
 
 interface DicomToolbarProps {
@@ -31,6 +33,8 @@ interface DicomToolbarProps {
 	showInfo: boolean;
 	isDrawingBbox?: boolean;
 	onToggleBboxDrawing?: () => void;
+	showAnnotations?: boolean;
+	onToggleAnnotations?: () => void;
 }
 
 export default function DicomToolbar({
@@ -47,6 +51,8 @@ export default function DicomToolbar({
 	showInfo,
 	isDrawingBbox = false,
 	onToggleBboxDrawing,
+	showAnnotations = false,
+	onToggleAnnotations,
 }: DicomToolbarProps) {
 	return (
 		<div className="absolute top-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50 shadow-xl">
@@ -111,6 +117,15 @@ export default function DicomToolbar({
 					</Button>
 					<div className="w-px bg-slate-700 mx-0.5"></div>
 					{/* Annotation Tools */}
+					<Button
+						onClick={onToggleAnnotations}
+						variant="ghost"
+						size="icon"
+						className={`h-8 w-8 transition-colors ${showAnnotations ? 'text-green-400 bg-green-500/20' : 'text-slate-300 hover:text-white hover:bg-slate-700/80'}`}
+						title={showAnnotations ? 'Ẩn Annotations (A)' : 'Hiện Annotations (A)'}
+					>
+						{showAnnotations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+					</Button>
 					<Button
 						onClick={onToggleBboxDrawing}
 						variant="ghost"

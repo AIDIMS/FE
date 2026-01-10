@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-	LayoutDashboard,
 	Users,
 	Stethoscope,
 	UserPlus,
@@ -15,55 +14,75 @@ import {
 	LogOut,
 	Menu,
 	UserCog,
-	ClipboardList,
+	Bell,
+	LayoutDashboard,
+	Box,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/lib/contexts/auth-context';
 
 interface NavItem {
 	title: string;
 	href: string;
 	icon: React.ReactNode;
-	roles?: number[]; // 0=admin, 1=doctor, 2=receptionist, 3=technician
+	roles?: number[];
 }
 
 const navItems: NavItem[] = [
 	{
+		title: 'Tổng quan',
+		href: '/dashboard',
+		icon: <LayoutDashboard className="h-5 w-5" />,
+		roles: [0], // Admin only
+	},
+	{
 		title: 'Quản lý người dùng',
 		href: '/users',
 		icon: <UserCog className="h-5 w-5" />,
+		roles: [0],
+	},
+	{
+		title: 'Quản lý Annotations',
+		href: '/annotations',
+		icon: <Box className="h-5 w-5" />,
 		roles: [0], // Admin only
 	},
 	{
 		title: 'Lễ tân',
 		href: '/receptionist',
 		icon: <UserPlus className="h-5 w-5" />,
-		roles: [0, 2], // Admin & Receptionist
+		roles: [0, 2],
 	},
 	{
 		title: 'Hàng chờ khám',
 		href: '/doctor/queue',
 		icon: <Stethoscope className="h-5 w-5" />,
-		roles: [0, 1], // Admin & Doctor
+		roles: [0, 1],
 	},
 	{
 		title: 'Danh sách chụp',
 		href: '/technician/worklist',
 		icon: <Camera className="h-5 w-5" />,
-		roles: [0, 3], // Admin & Technician
+		roles: [0, 3],
 	},
 	{
 		title: 'Bệnh nhân',
 		href: '/patients',
 		icon: <Users className="h-5 w-5" />,
-		roles: [0, 1, 2], // Admin, Doctor, Receptionist
+		roles: [0, 1, 2],
+	},
+	{
+		title: 'Thông báo',
+		href: '/notifications',
+		icon: <Bell className="h-5 w-5" />,
+		roles: [0, 1, 2, 3],
 	},
 	{
 		title: 'Cài đặt',
 		href: '/settings',
 		icon: <Settings className="h-5 w-5" />,
-		roles: [0, 1, 2, 3], // All roles
+		roles: [0, 1, 2, 3],
 	},
 ];
 
@@ -110,9 +129,8 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: Readonly<Sideb
 			</div>
 
 			{/* Navigation */}
-			<nav className="flex-1 space-y-1 p-4">
+			<nav className="flex-1 space-y-1 p-4 overflow-y-auto scrollbar-medical">
 				{navItems.map(item => {
-					// Filter by user role
 					if (item.roles && user?.role !== undefined && !item.roles.includes(user.role)) {
 						return null;
 					}
@@ -124,9 +142,9 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: Readonly<Sideb
 							href={item.href}
 							onClick={onMobileClose}
 							className={cn(
-								'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+								'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
 								isActive
-									? 'bg-blue-50 text-blue-600 [&_svg]:text-blue-600 font-semibold'
+									? 'bg-[#0D47A1] text-white shadow-lg shadow-[#0D47A1]/20 [&_svg]:text-white'
 									: 'text-gray-600 hover:bg-gray-50 [&_svg]:text-gray-500'
 							)}
 						>
@@ -142,7 +160,7 @@ export function Sidebar({ className, mobileOpen, onMobileClose }: Readonly<Sideb
 				<Button
 					variant="ghost"
 					disabled={isLoggingOut}
-					className="w-full justify-start gap-3 text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+					className="w-full justify-start gap-3 text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-xl"
 					onClick={handleLogout}
 				>
 					<LogOut className="h-5 w-5" />

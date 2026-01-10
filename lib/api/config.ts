@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-	BASE_URL: process.env.NEXT_PUBLIC_API_URL,
+	BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5104/api',
 	TIMEOUT: 30000,
 } as const;
 
@@ -43,5 +43,17 @@ export const API_ENDPOINTS = {
 	AI_ANALYSIS: {
 		BY_INSTANCE: (instanceId: string) => `/AiAnalysis/instance/${instanceId}`,
 		FINDINGS: (analysisId: string) => `/AiAnalysis/${analysisId}/findings`,
+	},
+	IMAGE_ANNOTATIONS: {
+		BY_INSTANCE: (instanceId: string) => `/ImageAnnotations/instance/${instanceId}`,
+	},
+	NOTIFICATIONS: {
+		BASE: '/Notifications',
+		MY_NOTIFICATIONS: '/Notifications/my-notifications',
+		MARK_AS_READ: (id: string) => `/Notifications/${id}/read`,
+		MARK_ALL_AS_READ: '/Notifications/mark-all-read',
+	},
+	DASHBOARD: {
+		BASE: '/Dashboard',
 	},
 } as const;

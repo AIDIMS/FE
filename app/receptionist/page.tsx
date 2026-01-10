@@ -2,14 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { RoleGuard } from '@/components/auth/role-guard';
 import { Patient, PatientVisit } from '@/lib/types/patient';
 import { CheckInFormData } from '@/components/receptionist/check-in-form';
 import { StatsCards } from '@/components/receptionist/stats-cards';
 import { PatientSearch } from '@/components/receptionist/patient-search';
 import { WaitingQueue } from '@/components/receptionist/waiting-queue';
 import { AddPatientDialog, CheckInDialog } from '@/components/receptionist/dialogs';
-import { visitService } from '@/lib/api';
+import { visitService, patientService } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
+import { UserRole } from '@/lib/types';
 
 interface PatientSearchResult extends Patient {
 	lastVisit?: string;
@@ -25,7 +27,7 @@ export default function ReceptionistDashboard() {
 	const [searchResults, setSearchResults] = useState<PatientSearchResult[]>([]);
 	const [waitingQueue, setWaitingQueue] = useState<WaitingPatient[]>([]);
 	const [isSearching, setIsSearching] = useState(false);
-	const [isLoadingQueue, setIsLoadingQueue] = useState(false);
+	const [, setIsLoadingQueue] = useState(false);
 	const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
 	const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 	const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -40,7 +42,14 @@ export default function ReceptionistDashboard() {
 			const result = await visitService.getAll(1, 100);
 
 			if (result.isSuccess && result.data) {
-				const waitingVisits = result.data.items.filter(visit => visit.status === 'Waiting');
+				// Sort by updatedAt - patient may return from imaging
+				const waitingVisits = result.data.items
+					.filter(visit => visit.status === 'Waiting' && !visit.isDeleted)
+					.sort((a, b) => {
+						const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+						const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+						return dateA - dateB; // ASC - người vào hàng đợi trước xếp trước
+					});
 
 				setWaitingQueue(waitingVisits);
 			} else {
@@ -64,38 +73,31 @@ export default function ReceptionistDashboard() {
 
 		setIsSearching(true);
 		try {
-			// Mock search - sẽ thay thế bằng API call
-			await new Promise(resolve => setTimeout(resolve, 500));
+			// Try to detect if query is a phone number (contains only digits)
+			const isPhoneNumber = /^\d+$/.test(query);
 
-			const mockResults: PatientSearchResult[] = [
-				{
-					id: 'p1',
-					patientCode: 'BN001',
-					fullName: 'Nguyễn Văn A',
-					dateOfBirth: '1990-01-15',
-					gender: 'male' as const,
-					phoneNumber: '0901234567',
-					address: '123 Đường ABC, Q1, TP.HCM',
-					lastVisit: '2025-11-10',
-					createdAt: new Date().toISOString(),
-					createdBy: null,
-					updatedAt: null,
-					updatedBy: null,
-					isDeleted: false,
-					deletedAt: null,
-					deletedBy: null,
-					lastVisitDate: '2025-11-10',
-				},
-			].filter(
-				p =>
-					p.fullName.toLowerCase().includes(query.toLowerCase()) ||
-					p.patientCode.toLowerCase().includes(query.toLowerCase()) ||
-					p.phoneNumber?.includes(query)
+			const result = await patientService.getAll(
+				1,
+				50, // Get more results for search
+				isPhoneNumber ? undefined : query, // fullName
+				isPhoneNumber ? query : undefined // phoneNumber
 			);
 
-			setSearchResults(mockResults);
+			if (result.isSuccess && result.data) {
+				// Map the data to include lastVisit field if needed
+				const searchResults: PatientSearchResult[] = result.data.items.map(patient => ({
+					...patient,
+					lastVisit: patient.lastVisitDate || undefined,
+				}));
+				setSearchResults(searchResults);
+			} else {
+				toast.error('Lỗi', result.message || 'Không thể tìm kiếm bệnh nhân');
+				setSearchResults([]);
+			}
 		} catch (error) {
 			console.error('Error searching patients:', error);
+			toast.error('Lỗi', 'Đã xảy ra lỗi khi tìm kiếm bệnh nhân');
+			setSearchResults([]);
 		} finally {
 			setIsSearching(false);
 		}
@@ -110,49 +112,51 @@ export default function ReceptionistDashboard() {
 
 	return (
 		<DashboardLayout>
-			<div className="w-full min-h-screen bg-slate-50">
-				<div className="px-6 py-8">
-					<StatsCards waitingCount={waitingQueue.length} />
+			<RoleGuard allowedRoles={[UserRole.Admin, UserRole.Receptionist]}>
+				<div className="w-full min-h-screen bg-slate-50">
+					<div className="px-6 py-8">
+						<StatsCards waitingCount={waitingQueue.length} />
 
-					<PatientSearch
-						searchQuery={searchQuery}
-						searchResults={searchResults}
-						isSearching={isSearching}
-						onSearchChange={handleSearch}
-						onCheckIn={handleCheckIn}
-						onAddPatient={() => setIsAddPatientOpen(true)}
-					/>
+						<PatientSearch
+							searchQuery={searchQuery}
+							searchResults={searchResults}
+							isSearching={isSearching}
+							onSearchChange={handleSearch}
+							onCheckIn={handleCheckIn}
+							onAddPatient={() => setIsAddPatientOpen(true)}
+						/>
 
-					<WaitingQueue
-						waitingQueue={waitingQueue}
-						onAddPatient={() => setIsAddPatientOpen(true)}
-					/>
+						<WaitingQueue
+							waitingQueue={waitingQueue}
+							onAddPatient={() => setIsAddPatientOpen(true)}
+						/>
 
-					<AddPatientDialog
-						open={isAddPatientOpen}
-						onOpenChange={setIsAddPatientOpen}
-						onSuccess={() => {
-							loadWaitingQueue();
-						}}
-					/>
+						<AddPatientDialog
+							open={isAddPatientOpen}
+							onOpenChange={setIsAddPatientOpen}
+							onSuccess={() => {
+								loadWaitingQueue();
+							}}
+						/>
 
-					<CheckInDialog
-						open={isCheckInOpen}
-						onOpenChange={setIsCheckInOpen}
-						patient={selectedPatient}
-						onSubmit={async (data: CheckInFormData) => {
-							console.log('Check-in:', data);
-							setIsCheckInOpen(false);
-							setSelectedPatient(null);
-							await loadWaitingQueue();
-						}}
-						onCancel={() => {
-							setIsCheckInOpen(false);
-							setSelectedPatient(null);
-						}}
-					/>
+						<CheckInDialog
+							open={isCheckInOpen}
+							onOpenChange={setIsCheckInOpen}
+							patient={selectedPatient}
+							onSubmit={async (data: CheckInFormData) => {
+								console.log('Check-in:', data);
+								setIsCheckInOpen(false);
+								setSelectedPatient(null);
+								await loadWaitingQueue();
+							}}
+							onCancel={() => {
+								setIsCheckInOpen(false);
+								setSelectedPatient(null);
+							}}
+						/>
+					</div>
 				</div>
-			</div>
+			</RoleGuard>
 		</DashboardLayout>
 	);
 }

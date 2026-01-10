@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
+import { getDefaultPathForRole } from '@/lib/config/permissions';
+import { authService } from '@/lib/api';
 
 export function LoginForm() {
 	const id = useId();
@@ -63,7 +65,11 @@ export function LoginForm() {
 			const success = await login(username, password);
 
 			if (success) {
-				const redirectUrl = searchParams.get('redirect') || '/dashboard';
+				// Get redirect URL from query params or use role-based default
+				const redirectParam = searchParams.get('redirect');
+				const currentUser = authService.getCurrentUser();
+				const defaultPath = currentUser ? getDefaultPathForRole(currentUser.role) : '/auth/login';
+				const redirectUrl = redirectParam || defaultPath;
 				router.push(redirectUrl);
 			} else {
 				setFormError('Tên đăng nhập hoặc mật khẩu không đúng');

@@ -36,16 +36,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 	const [notifications, setNotifications] = useState<NotificationDto[]>([]);
 	const [unreadCount, setUnreadCount] = useState(0);
 	const connectionRef = useRef<signalR.HubConnection | null>(null);
+	const connectionAttempted = useRef(false);
 
 	const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5104/api';
 
 	// SignalR Hub URL - remove ONLY the trailing /api, not any occurrence in the domain
 	const HUB_URL = API_URL.replace(/\/api$/, '');
 
+	// Check if URL is valid (has protocol)
+	const isValidUrl = API_URL.startsWith('http://') || API_URL.startsWith('https://');
+
 	// Fetch notifications from API
 	const refreshNotifications = useCallback(async () => {
 		const token = getToken();
-		if (!token) return;
+		if (!token || !isValidUrl) return;
 
 		try {
 			const response = await fetch(`${API_URL}/notifications/unread`, {
@@ -61,8 +65,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 					setUnreadCount(data.data.length);
 				}
 			}
-		} catch (error) {
-			console.error('Error fetching notifications:', error);
+		} catch {
+			// Silently fail - notifications API might not be available
 		}
 	}, [API_URL]);
 
@@ -70,7 +74,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 	const markAsRead = useCallback(
 		async (notificationId: string) => {
 			const token = getToken();
-			if (!token) return;
+			if (!token || !isValidUrl) return;
 
 			try {
 				const response = await fetch(`${API_URL}/notifications/${notificationId}/mark-read`, {
@@ -85,8 +89,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 					setNotifications(prev => prev.filter(n => n.id !== notificationId));
 					setUnreadCount(prev => Math.max(0, prev - 1));
 				}
-			} catch (error) {
-				console.error('Error marking notification as read:', error);
+			} catch {
+				// Silently fail
 			}
 		},
 		[API_URL]
@@ -95,7 +99,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 	// Mark all notifications as read
 	const markAllAsRead = useCallback(async () => {
 		const token = getToken();
-		if (!token) return;
+		if (!token || !isValidUrl) return;
 
 		try {
 			const response = await fetch(`${API_URL}/notifications/mark-all-read`, {
@@ -109,8 +113,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 				setNotifications([]);
 				setUnreadCount(0);
 			}
-		} catch (error) {
-			console.error('Error marking all notifications as read:', error);
+		} catch {
+			// Silently fail
 		}
 	}, [API_URL]);
 
@@ -121,9 +125,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 		if (!user || !token) {
 			// Cleanup existing connection
 			if (connectionRef.current) {
-				connectionRef.current.stop().catch(console.error);
+				connectionRef.current.stop().catch(() => {});
 				connectionRef.current = null;
 			}
+			connectionAttempted.current = false;
 			return;
 		}
 
@@ -132,18 +137,38 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 			hasToken: !!token,
 			userId: user.id,
 		});
+		// Skip if URL is invalid
+		if (!isValidUrl) {
+			console.warn('SignalR: Invalid API URL, skipping connection');
+			return;
+		}
+
+		// Prevent multiple connection attempts
+		if (connectionAttempted.current && connectionRef.current) {
+			return;
+		}
+
+		connectionAttempted.current = true;
 
 		const newConnection = new signalR.HubConnectionBuilder()
 			.withUrl(`${HUB_URL}/hubs/notifications`, {
 				accessTokenFactory: () => token,
 			})
-			.withAutomaticReconnect()
-			.configureLogging(signalR.LogLevel.Information)
+			.withAutomaticReconnect({
+				nextRetryDelayInMilliseconds: retryContext => {
+					// Stop retrying after 3 attempts
+					if (retryContext.previousRetryCount >= 3) {
+						return null;
+					}
+					// Exponential backoff: 1s, 2s, 4s
+					return Math.pow(2, retryContext.previousRetryCount) * 1000;
+				},
+			})
+			.configureLogging(signalR.LogLevel.Warning) // Only log warnings and errors
 			.build();
 
 		// Handle incoming notifications
 		newConnection.on('ReceiveNotification', (notification: NotificationDto) => {
-			console.log('Received notification:', notification);
 			setNotifications(prev => [notification, ...prev]);
 			setUnreadCount(prev => prev + 1);
 
@@ -156,30 +181,30 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 			}
 		});
 
-		// Start connection
+		// Start connection with error handling
 		newConnection
 			.start()
 			.then(() => {
-				console.log('SignalR Connected');
 				setIsConnected(true);
 				refreshNotifications(); // Load initial notifications
 			})
-			.catch(err => console.error('SignalR Connection Error:', err));
+			.catch(() => {
+				// SignalR connection failed - this is expected if backend is not running
+				// The app will still work, just without real-time notifications
+				setIsConnected(false);
+			});
 
 		// Handle reconnection
 		newConnection.onreconnected(() => {
-			console.log('SignalR Reconnected');
 			setIsConnected(true);
 			refreshNotifications();
 		});
 
 		newConnection.onreconnecting(() => {
-			console.log('SignalR Reconnecting...');
 			setIsConnected(false);
 		});
 
 		newConnection.onclose(() => {
-			console.log('SignalR Disconnected');
 			setIsConnected(false);
 		});
 
@@ -193,7 +218,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 		// Cleanup
 		return () => {
 			if (connectionRef.current) {
-				connectionRef.current.stop();
+				connectionRef.current.stop().catch(() => {});
 			}
 		};
 	}, [user, HUB_URL, refreshNotifications]);

@@ -6,10 +6,24 @@ import { CreatePatientDto, UpdatePatientDto, Patient } from '@/lib/types/patient
 export class PatientService {
 	async getAll(
 		pageNumber: number = 1,
-		pageSize: number = 10
+		pageSize: number = 10,
+		fullName?: string,
+		phoneNumber?: string
 	): Promise<ApiResult<PaginatedResult<Patient>>> {
+		const params = new URLSearchParams({
+			pageNumber: pageNumber.toString(),
+			pageSize: pageSize.toString(),
+		});
+
+		if (fullName) {
+			params.append('fullName', fullName);
+		}
+		if (phoneNumber) {
+			params.append('phoneNumber', phoneNumber);
+		}
+
 		return apiClient.get<PaginatedResult<Patient>>(
-			`${API_ENDPOINTS.PATIENTS.BASE}?pageNumber=${pageNumber}&pageSize=${pageSize}`
+			`${API_ENDPOINTS.PATIENTS.BASE}?${params.toString()}`
 		);
 	}
 

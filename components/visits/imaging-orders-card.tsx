@@ -29,11 +29,11 @@ export function ImagingOrdersCard({
 	getStatusBadge,
 }: ImagingOrdersCardProps) {
 	return (
-		<Card className="border-2 border-blue-600 bg-white shadow-sm">
+		<Card className="border-2 border-blue-500 bg-white shadow-sm">
 			<CardHeader className="pb-4 border-b border-slate-200">
 				<div className="flex items-center gap-2">
 					<Camera className="h-4 w-4 text-blue-600" />
-					<CardTitle className="text-sm font-semibold text-slate-900">
+					<CardTitle className="text-sm font-semibold text-slate-800">
 						Chỉ định chụp chiếu
 					</CardTitle>
 				</div>
@@ -42,36 +42,36 @@ export function ImagingOrdersCard({
 				{/* Add Order Button */}
 				<Button
 					onClick={onAddOrder}
-					className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-4 h-11 font-semibold"
+					className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-4 h-10 font-medium"
 				>
-					<Plus className="h-5 w-5 mr-2" />
+					<Plus className="h-4 w-4 mr-2" />
 					Thêm Chỉ Định
 				</Button>
 
-				{/* Summary Stats - Minimal */}
+				{/* Summary Stats */}
 				<div className="grid grid-cols-3 gap-2 mb-4">
 					<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-						<p className="text-xl font-bold text-slate-900">{imagingOrders.length}</p>
-						<p className="text-xs text-slate-500 mt-1">Tổng</p>
+						<p className="text-lg font-bold text-slate-800">{imagingOrders.length}</p>
+						<p className="text-xs text-slate-500">Tổng</p>
 					</div>
 					<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-						<p className="text-xl font-bold text-slate-900">
-							{imagingOrders.filter(o => o.status === 'pending').length}
+						<p className="text-lg font-bold text-slate-800">
+							{imagingOrders.filter(o => o.status?.toLowerCase() === 'pending').length}
 						</p>
-						<p className="text-xs text-slate-500 mt-1">Chờ</p>
+						<p className="text-xs text-slate-500">Chờ</p>
 					</div>
 					<div className="bg-slate-50 rounded-lg p-3 border border-slate-200 text-center">
-						<p className="text-xl font-bold text-slate-900">
-							{imagingOrders.filter(o => o.status === 'completed').length}
+						<p className="text-lg font-bold text-slate-800">
+							{imagingOrders.filter(o => o.status?.toLowerCase() === 'completed').length}
 						</p>
-						<p className="text-xs text-slate-500 mt-1">Xong</p>
+						<p className="text-xs text-slate-500">Xong</p>
 					</div>
 				</div>
 
 				{/* Orders List */}
 				{imagingOrders.length === 0 ? (
-					<div className="text-center py-10 px-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-						<Camera className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+					<div className="text-center py-8 px-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+						<Camera className="h-8 w-8 text-slate-300 mx-auto mb-2" />
 						<p className="text-sm text-slate-500">Chưa có chỉ định</p>
 					</div>
 				) : (
@@ -81,16 +81,16 @@ export function ImagingOrdersCard({
 								key={order.id}
 								className="bg-white rounded-lg p-4 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
 							>
-								<div className="flex items-start justify-between mb-3">
+								<div className="flex items-start justify-between mb-2">
 									<div className="flex items-center gap-3 flex-1">
 										<div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
 											<Camera className="h-4 w-4 text-slate-600" />
 										</div>
 										<div>
-											<p className="text-sm font-semibold text-slate-900">
+											<p className="text-sm font-semibold text-slate-800">
 												{order.modalityRequested}
 											</p>
-											<p className="text-xs text-slate-600">{order.bodyPartRequested}</p>
+											<p className="text-xs text-slate-500">{order.bodyPartRequested}</p>
 										</div>
 									</div>
 									<DropdownMenu>
@@ -104,20 +104,18 @@ export function ImagingOrdersCard({
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end" className="w-36">
-											{onViewImages &&
-												(order.status === 'completed' ||
-													order.status?.toLowerCase() === 'completed') && (
-													<>
-														<DropdownMenuItem
-															onClick={() => onViewImages(order)}
-															className="cursor-pointer text-sm"
-														>
-															<Eye className="mr-2 h-3 w-3" />
-															Xem hình ảnh
-														</DropdownMenuItem>
-														<DropdownMenuSeparator />
-													</>
-												)}
+											{onViewImages && order.status?.toLowerCase() === 'completed' && (
+												<>
+													<DropdownMenuItem
+														onClick={() => onViewImages(order)}
+														className="cursor-pointer text-sm"
+													>
+														<Eye className="mr-2 h-3 w-3" />
+														Xem hình ảnh
+													</DropdownMenuItem>
+													<DropdownMenuSeparator />
+												</>
+											)}
 											<DropdownMenuItem
 												onClick={() => onEditOrder(order)}
 												className="cursor-pointer text-sm"
@@ -137,7 +135,7 @@ export function ImagingOrdersCard({
 									</DropdownMenu>
 								</div>
 								{order.reasonForStudy && (
-									<p className="text-xs text-slate-600 mb-3 line-clamp-2 pl-12">
+									<p className="text-xs text-slate-600 mb-2 line-clamp-2 pl-12">
 										{order.reasonForStudy}
 									</p>
 								)}
