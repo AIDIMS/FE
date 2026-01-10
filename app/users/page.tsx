@@ -20,14 +20,17 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { UserFormDialog } from '@/components/users/user-form-dialog';
 import { DeleteUserDialog } from '@/components/users/delete-user-dialog';
 import { UserTable } from '@/components/users/user-table';
+import { Pagination } from '@/components/ui/pagination';
 
 export default function UsersPage() {
 	const { user: currentUser } = useAuth();
 	const [users, setUsers] = useState<UserListDto[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState('');
-	const pageNumber = 1;
+	const [pageNumber, setPageNumber] = useState(1);
 	const [totalCount, setTotalCount] = useState(0);
+	const [totalPages, setTotalPages] = useState(1);
+	const pageSize = 10;
 
 	// Dialog states
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -45,11 +48,12 @@ export default function UsersPage() {
 	const loadUsers = async () => {
 		try {
 			setIsLoading(true);
-			const result = await userService.getAll(pageNumber, 10);
+			const result = await userService.getAll(pageNumber, pageSize);
 
 			if (result.isSuccess && result.data) {
 				setUsers(result.data.items);
 				setTotalCount(result.data.totalCount);
+				setTotalPages(result.data.totalPages);
 			}
 		} catch (error) {
 			console.error('Error loading users:', error);
@@ -399,6 +403,13 @@ export default function UsersPage() {
 								currentUserId={currentUser?.id}
 							/>
 						</CardContent>
+						{totalPages > 1 && (
+							<Pagination
+								currentPage={pageNumber}
+								totalPages={totalPages}
+								onPageChange={setPageNumber}
+							/>
+						)}
 					</Card>
 				</div>
 

@@ -25,6 +25,7 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UserRole } from '@/lib/types';
+import { Pagination } from '@/components/ui/pagination';
 
 export default function PatientsPage() {
 	const [patients, setPatients] = useState<Patient[]>([]);
@@ -33,6 +34,9 @@ export default function PatientsPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+	const [pageNumber, setPageNumber] = useState(1);
+	const [totalPages, setTotalPages] = useState(1);
+	const pageSize = 10;
 
 	const [selectedGender, setSelectedGender] = useState<'all' | 'Male' | 'Female' | 'Other'>('all');
 	const [selectedAgeRange, setSelectedAgeRange] = useState<'all' | 'child' | 'adult' | 'senior'>(
@@ -53,15 +57,16 @@ export default function PatientsPage() {
 
 	useEffect(() => {
 		loadPatients();
-	}, []);
+	}, [pageNumber]);
 
 	const loadPatients = async () => {
 		setIsLoading(true);
 		try {
-			const result = await patientService.getAll(1, 100);
+			const result = await patientService.getAll(pageNumber, pageSize);
 			if (result.isSuccess && result.data) {
 				setPatients(result.data.items);
 				setFilteredPatients(result.data.items);
+				setTotalPages(result.data.totalPages);
 			}
 		} catch (error) {
 			console.error('Error loading patients:', error);
@@ -388,6 +393,13 @@ export default function PatientsPage() {
 									isLoading={isLoading}
 								/>
 							</div>
+							{totalPages > 1 && (
+								<Pagination
+									currentPage={pageNumber}
+									totalPages={totalPages}
+									onPageChange={setPageNumber}
+								/>
+							)}
 						</div>
 
 						{/* Form Dialog */}
