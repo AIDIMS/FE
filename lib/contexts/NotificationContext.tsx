@@ -38,8 +38,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 	const connectionRef = useRef<signalR.HubConnection | null>(null);
 
 	const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5104/api';
-	// SignalR Hub URL (without /api prefix)
-	const HUB_URL = API_URL.replace('/api', '');
+
+	// SignalR Hub URL - remove ONLY the trailing /api, not any occurrence in the domain
+	const HUB_URL = API_URL.replace(/\/api$/, '');
 
 	// Fetch notifications from API
 	const refreshNotifications = useCallback(async () => {
@@ -125,6 +126,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 			}
 			return;
 		}
+
+		console.log('[NotificationContext] Connecting to SignalR:', {
+			HUB_URL: `${HUB_URL}/hubs/notifications`,
+			hasToken: !!token,
+			userId: user.id,
+		});
 
 		const newConnection = new signalR.HubConnectionBuilder()
 			.withUrl(`${HUB_URL}/hubs/notifications`, {
